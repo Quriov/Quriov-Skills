@@ -1,0 +1,9 @@
+# 账号凭证：专用小号 cookie，永不上 repo
+.secrets/
+# 抓取产物
+xhs_notes.json
+xhs_last_raw.json
+xhs_*.json
+# python
+__pycache__/
+*.pyc
