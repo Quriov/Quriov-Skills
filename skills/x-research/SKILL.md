@@ -120,6 +120,31 @@ python scripts/search_x.py "smart glasses" --count 30 --product Latest
 
 （字段以服务器上 twikit 2.3.3 的 Tweet 对象为准；远程脚本用 getattr 兜底，单字段缺失不会让整个脚本崩。）
 
+### 2. 拉指定博主时间线（timeline_x.py）
+
+「搜关键词」之外的另一条主路径：**按博主拉他的时间线**（要某个人最近发了什么，而不是搜某话题）。与 search_x.py 同架构、同服务器、同 search.json cookie。
+
+```
+python scripts/timeline_x.py dontbesilent
+python scripts/timeline_x.py @dontbesilent --count 30
+python scripts/timeline_x.py dontbesilent --type Replies
+```
+
+**参数速查表：**
+
+| 参数 | 说明 | 默认 |
+|------|------|------|
+| `screen_name` | 博主用户名（位置参数，必填；带不带 @ 都行） | — |
+| `--count N` | 返回推文条数 | 20 |
+| `--type Tweets` | 原创+转发（对标拆解看动态） | **Tweets** |
+| `--type Replies` | 含回复 | — |
+| `--type Media` | 只看带图/视频 | — |
+| `--type Likes` | 该博主点赞过的 | — |
+
+**输出格式（JSON 打到 stdout）**：`{"user":"...","user_name":"...","followers":N,"total_tweets":N,"type":"...","count":N,"tweets":[...]}`，每条 tweet 字段与 search_x.py 一致（`text`/`likes`/`retweets`/`replies`/`quotes`/`views`/`created_at`/`lang`/`tweet_id`/`url`）。
+
+> 用途：对标拆解某个博主（拉近 20 条看选题/钩子/发布节奏），是「内容获取基建」按博主取 X 内容的标准入口。已实测 `@dontbesilent` 返回 20 条最新推文。
+
 ---
 
 ## 四、痛点提取 SOP

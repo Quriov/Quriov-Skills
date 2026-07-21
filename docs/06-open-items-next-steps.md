@@ -27,12 +27,11 @@
 
 ---
 
-### 3. X 搜索限读解除后验证
+### 3. X 搜索小号已配 + 单博主时间线已加（2026-07-21 更新，此前"限读待恢复"已过时）
 
-**状态**：@Quriov 被 X 临时限读（搜索 404，发推仍正常）。
-**下一步**：
-- 等几天自然恢复后，跑 `python scripts/search_x.py "smart glasses" --count 10` 验证恢复。
-- **同时**：配一个小号专门用来搜索（`python scripts/set_cookie.py --role search --from-firefox`），以后搜索不用品牌号，彻底避免这个问题重演。
+**状态**：✅ 搜索专用小号已在服务器配好（`C:\QuriovXTools\cookies\search.json`），实测可用——用它拉 `@dontbesilent` 时间线成功返回 20 条最新推文。品牌号限读问题已通过"搜索走小号、发布走品牌号"的双 cookie 分离彻底规避，不再依赖品牌号自然恢复。
+**新增能力**：`scripts/timeline_x.py`——按博主拉时间线（`get_user_by_screen_name` + `get_tweets`），与 `search_x.py` 同架构（SSH→服务器 twikit→JSON），字段与 search 输出一致。用法 `python scripts/timeline_x.py dontbesilent --count 20`。
+**接续**：`timeline_x.py` 的远程 twikit 逻辑已在服务器实测通过；编排框架复用 `search_x.py` 模式；整合脚本待用 `.secrets/server.json` 端到端跑一次验收（缺 server.json 密码的机器跑不了本机编排段）。
 
 ---
 
