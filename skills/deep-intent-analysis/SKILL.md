@@ -1,8 +1,8 @@
 ---
 name: deep-intent-analysis
-description: MUST invoke BEFORE responding to feature/modification/optimization/refactor/redesign requests, in ANY language (EN/中文). Performs 3-layer intent analysis (surface→direct→deeper goal / 表面-直接-深层) and proposes 2-8 related improvements (举一反三 / 添加/新增/改/优化/重构/设计/add/create/build/optimize/refactor/improve) serving the same deeper goal, then STOPS for user scope confirmation before any code. Runs UPSTREAM of brainstorming/planning skills. Skip ONLY for: pure factual questions (什么是X/what is X), typo fixes, short replies (好/ok/yes), an already-scoped handoff/接班 take-over (task+boundaries+stop-go already given → follow it), or messages prefixed with skip:/quick:/直接:.
+description: "MUST invoke BEFORE responding to feature/modification/optimization/refactor/redesign requests, in ANY language (EN/中文). Performs 3-layer intent analysis (surface→direct→deeper goal / 表面-直接-深层) and proposes 2-8 related improvements (举一反三 / 添加/新增/改/优化/重构/设计/add/create/build/optimize/refactor/improve) serving the same deeper goal, then STOPS for user scope confirmation before any code. Runs UPSTREAM of brainstorming/planning skills. Skip ONLY for these cases — pure factual questions (什么是X/what is X), typo fixes, short replies (好/ok/yes), an already-scoped handoff/接班 take-over (task+boundaries+stop-go already given → follow it), or messages prefixed with skip:/quick:/直接:."
 ---
-<!-- deep-intent-analysis-skill-rev: 2026-07-11 -->
+<!-- deep-intent-analysis-skill-rev: 2026-07-23 -->
 
 # Deep Intent Analysis + 举一反三
 
