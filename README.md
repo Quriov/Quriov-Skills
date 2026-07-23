@@ -10,10 +10,10 @@ Quriov 团队的 **AI agent skill 单一来源(SoT)**。
 npx skills add Quriov/Quriov-Skills -g --all
 ```
 
-只装其中几个:
+只装其中几个(⚠ 多个 skill 要**重复 `-s`**,逗号分隔不识别):
 
 ```bash
-npx skills add Quriov/Quriov-Skills -g -a '*' -s handoff,deep-intent-analysis
+npx skills add Quriov/Quriov-Skills -g -a '*' -s handoff -s deep-intent-analysis
 ```
 
 先看有哪些、不装:
