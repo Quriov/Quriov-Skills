@@ -1,6 +1,6 @@
 # Handoff Protocol — Full Reference
 
-<!-- handoff-skill-rev: 2026-07-23 -->
+<!-- handoff-skill-rev: 2026-07-28 -->
 > This is the **detailed protocol reference** for the `handoff` **skill** ([`../SKILL.md`](../SKILL.md)). It contains rationale, incident backgrounds, examples, edge cases not in the skill's executable procedure.
 >
 > ⚠ **handoff 已从 command 统一为 skill**(单源,跨 Claude + Codex)。本 doc 现位于 `.claude/skills/handoff/references/`;§ Step 3b cross-layer sync 路径 + See also 相对链接已同步更新到 skill 位置。
@@ -346,12 +346,27 @@ PR body 应列:
 - Which files changed + 为什么
 - Linked /handoff session (handoff doc path)
 
-**Eligible for fast-path merge** if (per项目 fast-path rule):
-- All CI green
-- 0 human negative review
-- 改动 scope 全在 `docs/handoffs/` + `memory/` + `.claude/` (hygiene scope, 不碰 `src/`)
+### ⚠ 开完 PR 必须让它真的进 main (否则交接断链)
 
-CC 等 CI 绿后可 fast-path merge (撞 worktree 冲突时用下方 anti-pattern 清单 "multi-worktree gh pr merge" 那条的 API workaround).
+**为什么是硬要求**: 新 session 读的是 **main 上**的 handoff 文件。只存在于未合并 PR 分支上的文档, **对接班方等于不存在** —— PR 开了但没合, 交接就是断的。
+
+**真实代价 (2026-07-28 实测)**: 某仓两份交接文档分别在未合并 PR 里躺了 **11 天 / 17 天**, 期间每个接班 session 都读不到。根因: Step 7 停在"开 PR + 报给用户", 把"进 main"这一步交给了人去记 —— 靠自觉的环节默认会失效。
+
+**所以开完 PR 二选一, 不许停在"PR 已开"就报完成**:
+
+1. **项目有自动合并机制** (CI 绿即自动合 handoff 类 PR) → 说明"已开 PR #N, 合并由 CI 自动完成", 并**确认最终真的合了**: `gh pr view <N> --json state,mergeCommit`
+2. **没有自动合并** → CI 绿后自己合: `gh pr merge <N> --squash --delete-branch`
+   (撞 multi-worktree 冲突用下方 anti-pattern 清单 "multi-worktree gh pr merge" 那条的 API workaround)
+   **无权限合** → 显式告诉用户"PR #N **需要你点一下 merge, 否则下个 session 看不到这份交接**" + 列进 Step 6 § Uncertainty
+
+**能自己合的判据** (全满足才合):
+- All CI green (判红绿看 **job 级 conclusion**, 别看空的 required 集合)
+- 0 human negative review
+- 改动 scope 全在 hygiene 范围 (`docs/handoffs/` + `memory/` + state-pin 那一行), **不碰 `src/`**
+
+⚠ **混了团队真相文件就别自作主张**: 同一 PR 里若含 `CLAUDE.md` / `AGENTS.md` / `.claude/**` 的**实质**改动 (不是 handoff 流程要求的 `last_updated` state-pin 那一行), 按项目规矩可能需要人审 → 交给人, 别直推。项目若有 Ship/Show/Ask 之类分档规则, 以项目规则为准。
+
+⚠ **标题带 "handoff" ≠ 就是交接文档**: 判据是**文件清单**, 不是 PR 标题。真实教训: 某仓 3 个标题以 "Handoff:" 开头的 PR, 内容其实是 34 个 TypeScript/Kotlin/Python **源码文件** —— 那些本来就该走完整 PR 审, 任何自动合并机制都必须按**文件路径**判定, 绝不能按标题匹配。
 
 **3. Report back to user**
 
@@ -421,11 +436,11 @@ gh api -X DELETE repos/<owner>/<repo>/git/refs/heads/<branch>
 两步: (a) API 直接 merge (绕 local checkout), (b) API delete remote branch (replace `--delete-branch` 行为). 等价语义, 跳 gh 本地 git 操作.
 
 #### 12. Don't leave Step 3 hygiene edits uncommitted (fresh-worktree defense)
-dogfood 真事 — 用户在 Claude Desktop 默认 fresh-worktree 模式下跑 handoff, Step 3 user confirm 后 CC edit 文件没 commit, 老 session 结束 → 新 session fresh worktree 看不见 → hygiene 改动等于丢. **Step 7 强制 commit + 开 PR** (eligible fast-path merge per 项目 rule).
+dogfood 真事 — 用户在 Claude Desktop 默认 fresh-worktree 模式下跑 handoff, Step 3 user confirm 后 CC edit 文件没 commit, 老 session 结束 → 新 session fresh worktree 看不见 → hygiene 改动等于丢. **Step 7 强制 commit + 开 PR + 确保它真的进 main** (见上方 §「开完 PR 必须让它真的进 main」).
 
 **Real cause**: handoff protocol 早期设计假设 session 是 long-running 单 worktree, 自然会 commit. 没考虑 fresh-worktree per-session 模式 (Claude Desktop 默认).
 
-**Fix**: Step 7 procedural 把 git-tracked hygiene 改动 → bundle commit → 新 branch → 开 PR → fast-path merge (if 绿). User-level memory 例外 (per-machine, 不进 git).
+**Fix**: Step 7 procedural 把 git-tracked hygiene 改动 → bundle commit → 新 branch → 开 PR → 确保合入 main (自动合或自己合, 无权限则显式告知用户). User-level memory 例外 (per-machine, 不进 git).
 
 ⚠ 不准跳 Step 7 — 跳 = 撞这条 fresh-worktree 丢失。
 
