@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-07-23 -->
+<!-- handoff-skill-rev: 2026-07-28 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
@@ -169,9 +169,20 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 
 | Location | What | Action |
 |---|---|---|
-| **Git-tracked** (项目 `docs/handoffs/*.md` / `CLAUDE.md` / `AGENTS.md` / `.claude/active-tracks.yaml` / project-level `memory/*`) | repo SoT | Bundle 成 1 commit (`chore(hygiene): /handoff close — <短描述>`) + push 新 branch `claude/handoff-hygiene-<short-id>` + 开 PR + 报 # 给用户; **eligible for fast-path merge** (绿 + 0 human negative review) |
+| **Git-tracked** (项目 `docs/handoffs/*.md` / `CLAUDE.md` / `AGENTS.md` / `.claude/active-tracks.yaml` / project-level `memory/*`) | repo SoT | Bundle 成 1 commit (`chore(hygiene): /handoff close — <短描述>`) + push 新 branch `claude/handoff-hygiene-<short-id>` + 开 PR + 报 # 给用户 |
 | **User-level memory** (`~/.claude/projects/<proj>/memory/*`) | per-user, NOT in repo | 直接 edit, 不 commit (per-machine local) |
 | **User-level config** (`~/.claude/commands/*` / `~/.claude/templates/*` / `~/.claude/scripts/*`) | per-user dotfile | 直接 edit (用户自己 git 维护那 dir) |
+
+> 🔑 **PR 开完不等于交接完成 —— 它必须真的进 main,下个 session 才看得见。**
+> 新 session 读的是 **main 上**的 handoff 文件;只存在于未合并 PR 分支上的文档,**对它等于不存在**。
+>
+> 所以开完 PR **必须**做这一步二选一,不许停在"PR 已开"就报完成:
+> - **项目有自动合并机制**(CI 绿即自动合 handoff 类 PR)→ 说明"已开 PR #N,合并由 CI 自动完成",并**确认它最终真的合了**(`gh pr view <N> --json state`)。
+> - **没有自动合并** → 你自己在 CI 绿后合掉(`gh pr merge <N> --squash --delete-branch`);**无权限合** → 显式告诉用户"**PR #N 需要你点一下 merge,否则下个 session 看不到这份交接**",并列进 Step 6 § Uncertainty。
+>
+> ⚠ **别把"混了什么文件"当小事**:纯 handoff 文档通常可直接合;但同一个 PR 里**混进 `CLAUDE.md` / `AGENTS.md` / `.claude/**` 这类团队真相文件**时,按项目自己的规矩可能需要人审 —— 混了就别自作主张直推,交给人。(项目若有 Ship/Show/Ask 之类的分档规则,以项目规则为准。)
+>
+> 📌 真实代价:某仓两份交接文档分别在未合并 PR 里躺了 **11 天和 17 天** —— 期间每个接班 session 都读不到它们。根因就是这一步停在了"PR 已开"。
 
 **Edge cases**:
 - 0 confirmed items → skip Step 7 (报 "no hygiene changes to commit")
