@@ -48,11 +48,11 @@ python scripts/set_cookie.py --role search --auth-token <你的auth_token> --ct0
 
 ```
 本机(search_x.py 编排器)
-   │  ① 读 .secrets/server.json 拿连接信息
-   │  ② SSH 连硅谷服务器(paramiko)
+   │  ① 读 .secrets/server.json 拿连接信息(逻辑在 scripts/_ssh.py，三个脚本共用)
+   │  ② SSH 连硅谷服务器(paramiko；私钥 / 密码两种认证自动择一)
    │  ③ SFTP 上传远程搜索脚本到服务器临时目录
    ▼
-硅谷服务器 47.251.0.142 (C:\QuriovXTools)
+硅谷服务器 (C:\QuriovXTools)  ← Tailscale 100.102.0.123(推荐) / 公网 47.251.0.142
    │  ④ 用服务器 venv 跑 twikit 搜 X(cookie 在服务器上)
    │  ⑤ 输出 JSON
    ▼
@@ -79,13 +79,25 @@ pip install -r requirements.txt
 ```
 
 **(b) 准备服务器连接配置 `.secrets/server.json`：**
-最省事的办法：把 skill 根目录的 `server.json.example` 复制到 `.secrets\server.json`，
-把 `password` 换成真实密码(找负责人要)。文件内容长这样：
+把 skill 根目录的 `server.json.example` 复制到 `.secrets/server.json` 再按下面二选一填。
+
+**方式 1（推荐）：Tailscale 内网 IP + 私钥 —— 本机不存服务器密码**
+```json
+{"host": "100.102.0.123", "port": 22, "user": "Administrator", "key_filename": "~/.ssh/id_ed25519"}
+```
+前提：你的公钥已在服务器 `authorized_keys` 里、且本机在 Tailscale mesh 内。
+好处：本机磁盘上没有 Administrator 明文密码；走加密内网，不依赖公网 22 端口；
+公网 IP 变了也不受影响。（2026-07-30 在 Mac 上实测通，真搜索出真推文。）
+
+**方式 2（向后兼容）：公网 IP + 密码**
 ```json
 {"host": "47.251.0.142", "port": 22, "user": "Administrator", "password": "服务器密码"}
 ```
+密码找负责人要。**两个都填时 `password` 优先**，所以想切私钥就把 `password` 删掉。
+
 > ⚠️ `.secrets/` 已被 `.gitignore` 忽略，**不进 git、不会同步给团队其他人**。
-> 团队其他成员 / Codex 要用本 skill，**必须各自手动创建这个文件**(密码找负责人要)。
+> 团队其他成员 / Codex 要用本 skill，**必须各自手动创建这个文件**。
+> 认证逻辑只有一份，在 `scripts/_ssh.py`（`search_x` / `timeline_x` / `set_cookie` 共用）。
 
 ### 1. 搜推文（主力命令）
 

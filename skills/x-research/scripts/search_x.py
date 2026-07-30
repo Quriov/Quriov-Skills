@@ -7,8 +7,8 @@
 (那台服务器的 twikit 环境已验证能成功搜 X)，结果(JSON)传回本机 stdout。
 
 逻辑：
-  1. 从 .secrets/server.json 读服务器连接信息(不写死)。
-  2. paramiko 连服务器(AutoAddPolicy, timeout 30; 握手失败退避重连 1 次)。
+  1. 从 .secrets/server.json 读服务器连接信息(不写死)——见 _ssh.py。
+  2. paramiko 连服务器(私钥 / 密码 两种认证自动择一; 握手失败退避重连 1 次)。
   3. SFTP 上传远程搜索脚本到服务器临时路径。
   4. 用服务器 venv 的 python 执行远程脚本，捕获 stdout。
   5. 删除远程临时脚本。
@@ -24,21 +24,19 @@
   --count N          返回推文条数(默认 20)
   --product MODE     Top(按热度) / Latest(默认，按时间) / Media(带图/视频)
 
-安全：服务器密码只从 .secrets/server.json 读，不打印密码、不打印 cookie。
+安全：连接凭据只从 .secrets/server.json 读，不打印密码 / 私钥 / cookie。
+      推荐走 Tailscale 内网 IP + 私钥认证，本机无需存服务器密码(见 _ssh.py)。
 """
 import sys
 import json
-import time
 import uuid
 import argparse
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import paramiko  # noqa: E402
-
-SKILL_ROOT = Path(__file__).resolve().parent.parent
-SERVER_JSON = SKILL_ROOT / ".secrets" / "server.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _ssh import connect_ssh, load_server_config  # noqa: E402
 
 # 服务器上的固定路径(独立 X 工具箱 QuriovXTools，与 ai-infohub 分开)
 REMOTE_PYTHON = r"C:\QuriovXTools\.venv\Scripts\python.exe"
@@ -80,60 +78,6 @@ async def main():
 
 asyncio.run(main())
 '''
-
-
-def load_server_config() -> dict:
-    if not SERVER_JSON.exists():
-        print(
-            f"[错误] 找不到服务器连接配置：{SERVER_JSON}\n"
-            '请创建 .secrets/server.json，格式：\n'
-            '{"host":"...","port":22,"user":"...","password":"..."}',
-            file=sys.stderr,
-        )
-        sys.exit(2)
-    with open(SERVER_JSON, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
-    for k in ("host", "port", "user", "password"):
-        if k not in cfg:
-            print(f"[错误] server.json 缺少字段：{k}", file=sys.stderr)
-            sys.exit(2)
-    return cfg
-
-
-def connect_ssh(cfg: dict) -> paramiko.SSHClient:
-    """连服务器；握手失败退避重连 1 次(服务器对密集新连接有限流)。"""
-    last_err = None
-    # serial-ok: 退避重连，第 2 次依赖第 1 次失败结果，本质串行不可并发
-    for attempt in range(2):
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        try:
-            client.connect(
-                hostname=cfg["host"],
-                port=int(cfg["port"]),
-                username=cfg["user"],
-                password=cfg["password"],
-                timeout=30,
-                banner_timeout=30,
-                auth_timeout=30,
-                look_for_keys=False,
-                allow_agent=False,
-            )
-            return client
-        except Exception as e:  # noqa: BLE001
-            last_err = e
-            try:
-                client.close()
-            except Exception:  # noqa: BLE001
-                pass
-            if attempt == 0:
-                print(
-                    f"[信息] SSH 握手失败，{type(e).__name__}，5 秒后退避重连一次…",
-                    file=sys.stderr,
-                )
-                time.sleep(5)
-    print(f"[SSH 连接失败] {type(last_err).__name__}: {last_err}", file=sys.stderr)
-    sys.exit(1)
 
 
 def main() -> int:

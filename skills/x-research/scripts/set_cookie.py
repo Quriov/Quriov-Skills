@@ -27,8 +27,9 @@ cookie 是 twikit 格式：{"auth_token":"...","ct0":"..."}
 怎么从浏览器手动拿 auth_token / ct0：
   浏览器开发者工具(F12) → Application/存储 → Cookies → x.com → 复制 auth_token 和 ct0。
 
-安全：服务器密码只从 .secrets/server.json 读，不打印密码、不打印 cookie 全值
-      (只打印前 6 位 + 长度，便于核对)。
+安全：连接凭据只从 .secrets/server.json 读，不打印密码 / 私钥 / cookie 全值
+      (cookie 只打印前 6 位 + 长度，便于核对)。
+      推荐走 Tailscale 内网 IP + 私钥认证，本机无需存服务器密码(见 _ssh.py)。
 """
 import os
 import sys
@@ -42,10 +43,8 @@ from pathlib import Path
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-import paramiko  # noqa: E402
-
-SKILL_ROOT = Path(__file__).resolve().parent.parent
-SERVER_JSON = SKILL_ROOT / ".secrets" / "server.json"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from _ssh import connect_ssh, load_server_config  # noqa: E402
 
 # 服务器上的 cookie 目标路径(独立 X 工具箱 QuriovXTools)
 REMOTE_COOKIE_DIR = r"C:\QuriovXTools\cookies"
@@ -53,24 +52,6 @@ REMOTE_COOKIE_PATH = {
     "search": r"C:\QuriovXTools\cookies\search.json",
     "publish": r"C:\QuriovXTools\cookies\publish.json",
 }
-
-
-def load_server_config() -> dict:
-    if not SERVER_JSON.exists():
-        print(
-            f"[错误] 找不到服务器连接配置：{SERVER_JSON}\n"
-            '请创建 .secrets/server.json，格式：\n'
-            '{"host":"...","port":22,"user":"...","password":"..."}',
-            file=sys.stderr,
-        )
-        sys.exit(2)
-    with open(SERVER_JSON, "r", encoding="utf-8") as f:
-        cfg = json.load(f)
-    for k in ("host", "port", "user", "password"):
-        if k not in cfg:
-            print(f"[错误] server.json 缺少字段：{k}", file=sys.stderr)
-            sys.exit(2)
-    return cfg
 
 
 def find_firefox_cookie_db() -> str:
@@ -144,31 +125,6 @@ def get_cookie_from_firefox() -> dict:
         )
         sys.exit(2)
     return {"auth_token": creds["auth_token"], "ct0": creds["ct0"]}
-
-
-def connect_ssh(cfg: dict) -> paramiko.SSHClient:
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        client.connect(
-            hostname=cfg["host"],
-            port=int(cfg["port"]),
-            username=cfg["user"],
-            password=cfg["password"],
-            timeout=30,
-            banner_timeout=30,
-            auth_timeout=30,
-            look_for_keys=False,
-            allow_agent=False,
-        )
-        return client
-    except Exception as e:  # noqa: BLE001
-        try:
-            client.close()
-        except Exception:  # noqa: BLE001
-            pass
-        print(f"[SSH 连接失败] {type(e).__name__}: {e}", file=sys.stderr)
-        sys.exit(1)
 
 
 def mask(value: str) -> str:
