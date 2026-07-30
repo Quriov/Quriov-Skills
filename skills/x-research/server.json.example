@@ -1,1 +1,7 @@
-{"host": "47.251.0.142", "port": 22, "user": "Administrator", "password": "<服务器密码-找负责人要>"}
+{
+  "_comment": "认证两种任选其一。给 key_filename = 私钥认证(推荐: 配 Tailscale 内网 IP, 本机不必存服务器密码; 前提是你的公钥已在服务器 authorized_keys 里)。给 password = 密码认证(向后兼容, 密码找负责人要)。两个都给时 password 优先。host 可填 Tailscale 内网 IP 100.102.0.123(推荐, 走加密内网, 不依赖公网 22 端口) 或公网 47.251.0.142。",
+  "host": "100.102.0.123",
+  "port": 22,
+  "user": "Administrator",
+  "key_filename": "~/.ssh/id_ed25519"
+}
