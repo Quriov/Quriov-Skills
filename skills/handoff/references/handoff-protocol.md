@@ -1,6 +1,6 @@
 # Handoff Protocol — Full Reference
 
-<!-- handoff-skill-rev: 2026-07-28 -->
+<!-- handoff-skill-rev: 2026-08-04 -->
 > This is the **detailed protocol reference** for the `handoff` **skill** ([`../SKILL.md`](../SKILL.md)). It contains rationale, incident backgrounds, examples, edge cases not in the skill's executable procedure.
 >
 > ⚠ **handoff 已从 command 统一为 skill**(单源,跨 Claude + Codex)。本 doc 现位于 `.claude/skills/handoff/references/`;§ Step 3b cross-layer sync 路径 + See also 相对链接已同步更新到 skill 位置。
@@ -345,6 +345,28 @@ PR body 应列:
 - Which Step 3 sub-checks 触发 (3a memory drift / 3b health / 3b-extra cross-team / etc.)
 - Which files changed + 为什么
 - Linked /handoff session (handoff doc path)
+
+### ⚠ 先看本仓有没有「可直推」规则 —— 有则拆开走, 别打包成一个 PR
+
+**为什么**: 有些仓把状态指针类文件 (`active-tracks` / 工作板 / 状态行) 定为**免审可直推 main**, 同时用自动合并机制处理交接文档 PR。这类仓里**打包成一个 PR 反而会卡住** —— 自动合并白名单通常只认交接文档目录, 混进别的文件就判 block。
+
+**真实事故 (2026-08-04 确认, 两次现形)**: 某仓 `AGENTS.md` 协议**强制**「Session 结束更新 active-tracks 自己那行」, 而它的 handoff 自动合并判定器白名单只有 `context/handoffs/` 一条 → **每份合规交接 PR 都含这两个文件 → 一律判 block**, 全靠人肉合 (实测 #2080 于 2026-07-31、#2217 于 2026-08-04, 均由人工 merge)。
+
+> 讽刺之处: 自动合并**只对违反协议的交接 PR 生效** (那些忘了更新 active-tracks 的)。越守协议越被卡。
+
+**注意这不是那个仓的 bug**: 他们判定器里明确写了不把 active-tracks 加进白名单的理由 —— 那是给一个握有 `contents: write` 的机制放宽白名单, 爆炸半径不划算; 他们的正解是**分开走**。缺陷在本 skill: Step 7 无条件把所有 git-tracked 改动打包成一个 PR, 没有「这个文件在本仓本可直推」的概念。
+
+**怎么判**: grep 项目 `AGENTS.md` / `CLAUDE.md` 的直推白名单 (关键词 `Ship` / `直推` / `白名单`), 或看 `.github/workflows/` 有无 handoff 自动合并流及其判定脚本 (白名单通常写在判定脚本里)。
+
+**命中则**:
+- 交接文档 → **单独** PR (只含它, 让自动合并能认出来)
+- 状态指针文件 (在直推白名单内) → 直接 `git commit && git push` 到 main, 不进 PR
+
+**没命中** (多数仓) → 照常打包一个 PR。
+
+⚠ 别自作主张扩大直推范围: 只有**项目明文列进白名单**的路径才直推; 拿不准就走 PR (走 PR 最坏是多等一次人工合, 直推错了是把没审的东西推进 main)。
+
+---
 
 ### ⚠ 开完 PR 必须让它真的进 main (否则交接断链)
 

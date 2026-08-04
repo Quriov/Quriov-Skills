@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-07-28 -->
+<!-- handoff-skill-rev: 2026-08-04 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
@@ -167,9 +167,23 @@ Full format example with paste-ready template in protocol doc § Step 6.
 
 After Step 3 user confirms + CC executes file edits, classify each change by location AND act:
 
+> ⚠️ **先看本仓有没有「可直推」规则 —— 有的话别把那些文件混进 handoff PR。**
+>
+> 有些仓把「状态指针类文件」(如 `active-tracks` / 工作板 / 状态行) 定为**免审可直推 main**, 同时用自动合并机制处理交接文档 PR。这类仓里**打包成一个 PR 反而会卡住**: 自动合并的白名单通常只认交接文档目录, 混进别的文件就判 block, 于是每份**合规**交接 PR 都要人肉合 —— 越守协议越被卡。
+>
+> **怎么判**: grep 项目 `AGENTS.md` / `CLAUDE.md` 里的直推白名单 (关键词 `Ship` / `直推` / `白名单`), 或看 `.github/workflows/` 有没有 handoff 自动合并流及其判定脚本。
+>
+> **命中则分开走**:
+> - **交接文档** → 单独 PR (只含它, 让自动合并机制能认出来)
+> - **状态指针文件** (在直推白名单内的) → 直接 `git commit && git push` 到 main, **不进 PR**
+>
+> **没有这类规则** (多数仓) → 按下表照常打包成一个 PR。
+>
+> 📌 真实事故: 某仓协议**强制**同轮更新 `active-tracks.md`, 而它的 handoff 自动合并白名单只认 `context/handoffs/` → **每份合规交接 PR 都被判 block**, 全靠人手动合 (实测 #2080 / #2217)。根因就是本 skill 无条件打包、没有"这个文件本可直推"的概念。
+
 | Location | What | Action |
 |---|---|---|
-| **Git-tracked** (项目 `docs/handoffs/*.md` / `CLAUDE.md` / `AGENTS.md` / `.claude/active-tracks.yaml` / project-level `memory/*`) | repo SoT | Bundle 成 1 commit (`chore(hygiene): /handoff close — <短描述>`) + push 新 branch `claude/handoff-hygiene-<short-id>` + 开 PR + 报 # 给用户 |
+| **Git-tracked** (项目 `docs/handoffs/*.md` / `CLAUDE.md` / `AGENTS.md` / `.claude/active-tracks.yaml` / project-level `memory/*`) | repo SoT | Bundle 成 1 commit (`chore(hygiene): /handoff close — <短描述>`) + push 新 branch `claude/handoff-hygiene-<short-id>` + 开 PR + 报 # 给用户。**⚠ 本仓有直推白名单时按上方拆开走, 别打包** |
 | **User-level memory** (`~/.claude/projects/<proj>/memory/*`) | per-user, NOT in repo | 直接 edit, 不 commit (per-machine local) |
 | **User-level config** (`~/.claude/commands/*` / `~/.claude/templates/*` / `~/.claude/scripts/*`) | per-user dotfile | 直接 edit (用户自己 git 维护那 dir) |
 
