@@ -1,6 +1,6 @@
 # Handoff Protocol — Full Reference
 
-<!-- handoff-skill-rev: 2026-08-04 -->
+<!-- handoff-skill-rev: 2026-08-06 -->
 > This is the **detailed protocol reference** for the `handoff` **skill** ([`../SKILL.md`](../SKILL.md)). It contains rationale, incident backgrounds, examples, edge cases not in the skill's executable procedure.
 >
 > ⚠ **handoff 已从 command 统一为 skill**(单源,跨 Claude + Codex)。本 doc 现位于 `.claude/skills/handoff/references/`;§ Step 3b cross-layer sync 路径 + See also 相对链接已同步更新到 skill 位置。
@@ -132,6 +132,33 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
 > ℹ️ 旧版这里还有一段 "project ↔ user-level 双份副本手工 `cp` 对齐" 检查 —— 那是本 skill 靠人肉复制分发时代的产物。
 > 现在 skill 统一走 `npx skills add/update` 分发, 不再存在需要人工对齐的副本, 该段已删除。
+
+### ⭐ 拍板类信号 — 为什么单列一类, 以及必须回卡
+
+**真实事故 (2026-08-05, 眼镜仓 #2246 / 复盘 #2379)**:
+
+拍板发生在**写 handoff 的现场**。执笔者把 verbatim 原话工整记进了 handoff (还标了 ⭐ 和时间 `0805 18:0x`), 就觉得"记下来了" —— 但**没有回到那张卡上**。后果:
+
+```
+卡顶没写 → 下一棒只扫卡顶 + pending, handoff 正文里的拍板对它不可见
+        → 再下一棒的个人 memory 把「已拍」记成「仍等宇通拍」(方向反了)
+        → 拍板人本人的启动包引用了那份错 memory
+        → 又一棒照单复述, 无人起疑
+```
+
+**两棒无人接手, 直到拍板人本人真机使用时发现还是旧版才暴露。**
+
+**关键机制判断**: 那不是四道防线失守 —— **它们是同一个源头的四份复制品**, 互相派生。源头一错四份全错, 而且**每多一份, 读的人越确信** (口径一致 → 更不会去质疑)。
+
+**推论**: 再补一份同源的复制品 (模板里加个"我已回卡"自检勾选框) **不解决问题** —— 它仍由"执笔者此刻怎么想"派生, 而他此刻正认为自己已经记下来了。真正能拦住的只有两种东西:
+1. **独立信源的机器比对** (handoff 文本 vs issue 卡顶编辑史, 两个互不派生的源) —— 由各仓 CI 侧实现
+2. **让拍板在 handoff 里可被机器发现** —— 这是本 skill 能做的那半: 单列成类 + 固定格式 `拍板 · #N · <时间> · <结论>`
+
+⚠ **为什么是"格式化已经在写的东西", 不是"新增一个要记得做的动作"**: 任何"记得多写一行 / 记得勾一下"的设计, 都会在**同一个位置**重新裂开 —— 没想到回卡的人, 同样不会想到写那行标记。而拍板 verbatim 本来就会被写进 handoff (本案就写了), 只是没有格式、没有卡号、没被单列成类, 于是机器发现不了、人也不会被提醒回卡。
+
+**机器侧配套判据 (给实现巡查的人)**: 判"卡顶有没有跟进"用 GraphQL `issue.userContentEdits` 的**最后编辑时间**, **不能用 `issue.updatedAt`** —— 后者会被任何评论/引用刷新, 看着很新其实卡顶几天没动, 属于典型的全绿假阴性。比对基准用**拍板发生时间**而非 handoff 的 commit 时间, 否则复述历史拍板会必然误报。
+
+---
 
 ### Step 3b-extra-2: Stale branch hygiene (防 stale-branch 误用重演)
 
