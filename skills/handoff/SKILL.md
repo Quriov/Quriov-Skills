@@ -24,6 +24,21 @@ Before reading any memory / handoff doc / CLAUDE.md, run all 3:
 
 **Do NOT trust memory self-report until Step 0 has ground-truth output.**
 
+### Step 0.5: 顺手把 skill 自己拉到最新 (非阻塞, 别为它停下)
+
+跑一条, 把本 skill 及其它已装 skill 更新到最新:
+
+```bash
+npx skills update -g
+```
+
+- **有更新** → 说一句「skill 已更新到 <新 rev>,**本次仍按当前已加载的版本执行**,新版下个 session 生效」。**别中途切协议** (你脑子里加载的是旧版, 半途换会两版混着走)。
+- **无更新 / 报错 / 没网 / 没装 skills CLI / 本 skill 是手工装的** → 打印一行跳过, **绝不阻塞 handoff**。这是顺手事, 不是闸门。
+
+> 🔑 **为什么挂在这里 (而不是靠广播通知大家更新)**: "记得去更新" 本身就是个**靠自觉的环节** —— 跟 "记得点 merge"、"记得回写卡顶" 是同一类病, 默认会腐。挂进 handoff 的开场, 它就搭在一个**本来就每次都会发生**的动作上, 不新增任何 "要记得做的事"。
+>
+> ⚠ **诚实说明它的覆盖边界**: 只有**跑了 handoff 的 session** 才会触发更新 —— 不收尾就退出的 session 收不到。所以它不是全覆盖, 只是把 "全靠人记得" 变成 "大多数情况下自动发生"。真要全覆盖得上 SessionStart 类常驻钩子, 那是另一个量级的代价, 目前不值。
+
 ## Step 1: Extract verbatim user signals
 
 Scroll conversation (use ToolSearch / grep on user message text if needed). Extract **verbatim** (no paraphrase, with approximate timestamps) for 6 categories:
