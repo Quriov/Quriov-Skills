@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-12 -->
+<!-- handoff-skill-rev: 2026-08-12b -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
@@ -169,6 +169,38 @@ Fill 4 variables:
 ⚠ **生成的接班 prompt 必含「内化复述」段** (模板 §5; **上面 3 个模板文件万一都找不到时也必须自带这段**, 别省): 要求接班 CC 动手前用 3-5 句复述"北极星一句 + 当前档位 + 有意延后 vs 真缺口 + 本 turn 任务", 写在第一条回复里给用户扫 (不等确认不阻塞)。防接班丢失整条线设计意图的事故 (接班执行顺利但整条线设计意图没 load, 被用户追问才现挖)。长线必做, ad-hoc 缩成 1-2 句。
 
 ⚠ Template body 含 ```bash``` code block — Step 6 output 必须 **4 反引号** ```` fence (内 3 反引号 bash 不破碎).
+
+### Step 4c: 把「本 session 的 worktree 可否回收」算好, 写进接班 prompt
+
+**只在本 session 跑在独立 worktree 里时做** (`git rev-parse --git-common-dir` 与 `--git-dir` 不同即是; 在主检出里跑 → 整段跳过)。
+
+**为什么由接班方删、而不是自己删**: 你现在**正站在这个 worktree 里**, 删不掉脚下的地 —— 这是物理限制不是偏好。而交接完成后你已停摆、没人站在里面, 接班方在新 worktree 里, 永远不会误删自己。**所以: 你负责判断, 它负责执行。**
+
+**判据 = 推没推, 不是合没合** (三条全过才算安全):
+
+```bash
+git status --porcelain                 # 必须为空 —— 有未提交改动 = 删了永久丢
+git log @{u}.. --oneline               # 必须为空 —— 有未推送 commit = 删了永久丢
+git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = 删了永久丢
+```
+
+三条全过 = 内容都在远端, 本地删掉随时 `git fetch` 取回, **PR 开着 / 已合 / 被关掉都无所谓**。
+
+> ⚠ **别拿「已合进 main」当判据 (实测会误判)**: squash merge 会把分支压成一个新 commit, 原 commit **不在** main 的历史里 —— `git merge-base --is-ancestor HEAD origin/main` 对**已经合并**的分支照样返回 false。实测: PR 已 merged、内容全在远端, 该判据仍说"没进 main"。用它当闸门会把安全的判成不安全。
+
+**三条全过** → 在接班 prompt 里写一行 (路径写绝对路径):
+
+```
+♻️ 前任 worktree 可回收: <绝对路径>(分支 <branch>,已确认工作区干净、无未推送 commit)
+   你读完交接、确认没有要回看的东西之后:git worktree remove <绝对路径>
+```
+
+**任一条不过** → **不要**写回收指令, 改成如实说明, 例:`⚠ 前任 worktree <路径> 有未提交改动, 先别删 —— 需要人看一眼是否还要`。
+
+⚠ **三条铁律**:
+1. **只点名这一个 worktree**, 绝不让接班方"扫一遍全仓把没用的都删了" —— 会误伤**看起来像孤儿、实际是活基建**的专用检出 (真实案例: 某仓一个 detached、无 session 绑定、2GB 的目录, 长得完全像残留, 实际是**线上桥服务的专用部署检出**, 删了服务就断)。
+2. **不加 `--force`** —— 让 git 自己兜住脏工作区这道底。
+3. **只对"已被接棒取代"的前任做**。⚠ 有些项目把**休眠 session 视为正当态**(有意留着待复用/仍负回复义务), 它们的 worktree **不该清**。区别在于: 被接棒的前任不会再被复用了 —— 而**只有你知道自己正在被谁接棒**, 外部扫描器判不出来。这正是这件事该由 handoff 做、而不是做成定时清理任务的原因。
 
 ### Step 4b: 下一任 session 标题 (项目有命名规则文件才做; 没有则零变化)
 
