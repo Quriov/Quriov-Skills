@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-06 -->
+<!-- handoff-skill-rev: 2026-08-12 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
@@ -169,6 +169,31 @@ Fill 4 variables:
 ⚠ **生成的接班 prompt 必含「内化复述」段** (模板 §5; **上面 3 个模板文件万一都找不到时也必须自带这段**, 别省): 要求接班 CC 动手前用 3-5 句复述"北极星一句 + 当前档位 + 有意延后 vs 真缺口 + 本 turn 任务", 写在第一条回复里给用户扫 (不等确认不阻塞)。防接班丢失整条线设计意图的事故 (接班执行顺利但整条线设计意图没 load, 被用户追问才现挖)。长线必做, ad-hoc 缩成 1-2 句。
 
 ⚠ Template body 含 ```bash``` code block — Step 6 output 必须 **4 反引号** ```` fence (内 3 反引号 bash 不破碎).
+
+### Step 4b: 下一任 session 标题 (项目有命名规则文件才做; 没有则零变化)
+
+有些项目给常驻 session 定了命名规则 (线名 + 版本号, 每次交接递进一格), 好让人在一堆 session 里一眼看出「这是哪条线、第几棒」。**本 skill 不定义任何命名规则, 只负责: 项目有规则文件就读它、算出下一任标题、写进 init prompt 首行。**
+
+**按序探测** (命中任一即停):
+
+1. grep 项目 `CLAUDE.md` / `AGENTS.md` 里的 session 命名/生命周期指针 (关键词 `session-lifecycle` / `session 命名` / `session 形态`)
+2. `ls context/methods/session-lifecycle.md docs/methods/session-lifecycle.md .claude/session-lifecycle.md 2>/dev/null`
+
+**没命中 → 什么都不做**, init prompt 与不加本步时**逐字一致**。这是默认路径, 别输出"未检测到命名规则"之类的噪音 (它对多数项目不是缺失, 是本来就没有这回事)。
+
+**命中则**:
+
+1. **Read 那个文件, 按它写的规则算** —— 版本怎么递进 (+0.1? +1? 进位规则?)、标题长什么样、要不要带"第 N 任", **一律以该文件为准**。⚠ **别把任何具体规则背进脑子当通用常识** —— 各项目不同, 且会改。
+2. **当前版本从哪来**: 你自己这个 session 的标题 (通常你知道); 不知道 → 看项目最近一份 handoff / active-tracks 里的标题行; 再不行 **问用户, 别猜**——猜错会让版本号断档或倒退。
+3. **写进 init prompt 首行**, 并明确要求接班方开局自查改名, 例:
+
+   ```
+   你是 <线名> v<下一个版本>(第 N 任)。开局第一件事: 核对本 session 标题, 不符就改成这个。
+   ```
+
+⚠ **只对"会有下一棒"的常驻线做**。一次性/单开/ad-hoc session 通常没有下一任, 也常由派发方命名 —— 这类跳过本步。
+
+> 🔑 **为什么焊进 handoff**: 「开局即命名」如果只写在规约文件里, 就是又一个"靠接班的人记得" —— 而 handoff 产出 init prompt 是**每次交接的必经之路**。把标题算好、直接写进接班方读到的第一行, 接班方就不需要"记得"命名。同款思路见 Step 0.5 (skill 自更新) 与 Step 3b (拍板回写)。
 
 ## Step 5: Self-lint handoff doc
 
