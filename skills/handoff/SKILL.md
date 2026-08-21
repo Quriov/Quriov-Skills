@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-21b -->
+<!-- handoff-skill-rev: 2026-08-21c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -93,9 +93,13 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 | `已做 → §📋 <PR#/commit>` | 本棒交付了代码/文档 | 给不出 PR 号或 commit hash 就不许写这个 |
 | `已做(核实类) → <一句可复核的证据>` | 用户要的是"查一下/看一眼", 你查了 | 证据必须**可被下一棒复核** (命令+输出 / 文件:行 / 具体结论)。⚠ 光写"已确认"不算 |
 | `部分完成 → §📋 <已交付的> + §⚠ <剩下的>` | 做了一半 | **两个指针都必须真有内容** — 比 `已做` 更严, 不是逃生舱 |
-| `未做 → §⚠ pending` | 没做, 交给下一棒 | §⚠ 里必须真有对应条目 |
+| `未做 → §⚠ pending` | 没做, 留给下一棒 | §⚠ 里必须真有对应条目 |
 | `有意不做 → §⚠ deferred: <一句理由>` | 判断了不该做 | §⚠ 里必须真有对应条目 |
 | `是约束不是活` | 这条不产生动作 | **仅限 Push-back / Communication preference 两类** |
+
+> 📌 **「本来就打算留给下一棒」是一等公民, 不是欠账**: 用户中途说「这个先不用管, 让下一棒处理」、或本棒主动判断该由接班做 —— 都走 `未做 → §⚠ pending`, lint **不会**因此报警。
+> 本机制**只查"有没有落点", 不查"做没做完"** —— 一棒做不完是常态, **丢球**才是问题。
+> 建议在 §⚠ 那条里顺手注明是哪一种(「本棒没做完」还是「用户交代给下一棒」): 下一棒读到时, 对优先级的判断完全不同。
 
 > 📎 **不禁止自定义 section**: 落点必须*指向* §📋 / §⚠, 但细节可以在别处展开 —— 正确写法是 §⚠ 里留一条 + 另起小节铺开, 两全。
 > (2026-08-21 实例: 上一棒的 4 条 dogfood 发现铺在自造的 §🔬 里, 同时 §⚠ 第一句指向它 —— 这样做是对的。)
@@ -137,9 +141,19 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 - `git log origin/main..HEAD --oneline` (本 branch 独有 commit)
 - `gh pr list --head <current-branch> --state merged` (本 branch 是否已 squash-merged)
 
-**If**:
-- 内容跟 task 不一致 → STOP + ASK "branch X 有这些 commit, 跟 task 不一致, 是不是该开新 branch?"
-- 已 squash merged → STOP + ASK "本 branch 已 merged, 确定继续 commit? 一般应该 `git checkout main && git checkout -b <new>`"
+也跑 `git status --porcelain` (工作区干不干净) —— 下表要用。
+
+**三种情形, 处置不同**:
+
+| 情形 | 处置 |
+|---|---|
+| **已 squash-merged + 工作区干净** | ✅ **直接开新分支, 别问** — `git checkout main && git pull && git checkout -b <new>`, 然后**告知一行**:「起手时站在已合并分支 X 上, 已自动切到 Y」 |
+| **已 squash-merged + 工作区脏** | 🛑 STOP + ASK — 有未提交改动, 切分支会带着走或冲突, 必须人判 |
+| **内容跟 task 不一致** | 🛑 STOP + ASK — 「branch X 有这些 commit, 跟 task 不一致, 是不是该开新 branch?」 |
+
+> 🔑 **为什么第一种自动、后两种问** (2026-08-21 宇通拍): 第一种**答案唯一** —— 在已合并的分支上继续 commit 是本 skill 明令禁止的 (anti-pattern #8), 没有第二个选项可选, 问一次纯消耗用户注意力 (仪式花的是他的注意力)。后两种**答案不唯一** (脏工作区那些改动要不要带走 / 这条分支是不是其实就该继续用), 必须人判。
+>
+> ⚠ **放松的是"发现之后要不要问", 不是"要不要查"**: 本步仍是**每次必跑的步骤**, 不是"记得看一眼"。它 2026-08-20/21 两天内在两条线上各救过一次; 眼镜线原话:「我当时并不觉得自己站在死分支上……**如果它是一句『记得检查一下』而不是一个步骤, 我 100% 会跳过**。」
 
 ### Step 2c: Draft handoff doc
 
@@ -307,6 +321,9 @@ Full format example with paste-ready template in protocol doc § Step 6.
 > 🔒 **前置闸门: commit 前必跑, 贴 output 给用户留证据 (像 status-claim-linter 那样)**
 > 1. **state-rot 防御 (每次必跑)** — `bash "$(dirname $0)/scripts/handoff-freshness-check.sh" <本 session track-id>` —— **脚本随本 skill 分发**, 在本 skill 目录的 `scripts/` 下 (项目自带 `scripts/handoff-freshness-check.sh` 或 `~/.claude/scripts/` 有旧副本时用哪个都行, 内容以 skill 自带的为准)。FAIL = Step 3b 漏刷本 track `last_updated` → 回 Step 3b 补再 commit (防 CLAUDE.md state frozen 上百个 commit 没人改 同类事故)。脚本都找不到 (纯 user-level fallback 项目) → 跳过, 不 block。
 > 2. **改了本 skill 本身时** — 顺手把顶部 `handoff-skill-rev: <今天>` 锚点改掉, 再推回本 skill 的源仓。使用者跑 `npx skills update -g` 拉新版, rev 锚点就是他们确认"到底拿到没拿到"的凭据。**不改 skill 内容的普通 session 不需要这条。**
+> 3. **改了本 skill 的那一棒, PR 合并后必须再跑一次 `npx skills update -g`** —— 然后 grep 一下 rev 确认真拉到了。
+>    🔑 **为什么单列**: Step 0.5 跑在 handoff 的**开头**, 而"改 skill"发生在**这里(结尾)**。时序决定了 —— **改 skill 的那一棒, 自己永远拿不到自己的改动**, 除非在这里补一次。这不是"谁忘了跑", 是 Step 0.5 结构性够不到。
+>    🚨 **实测 (2026-08-21)**: 上一棒推了 PR、源仓 rev 已变, 但本机磁盘停在前一版 —— **接班 session 因此整个开局跑的都是旧版保鲜脚本**, 而且没有任何提示。呼应顶部「版本验证」那段: **推 PR ≠ 本机拿到了**。
 
 After Step 3 user confirms + CC executes file edits, classify each change by location AND act:
 
