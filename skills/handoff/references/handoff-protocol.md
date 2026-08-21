@@ -35,9 +35,16 @@ User is context-fatigued at end of long session and trusts you to leave clean br
 
 ## Step 1: Verbatim user signals — full rationale
 
-> 5 categories (Reframe / Push-back / Instinct / Mid-session 补充 / Communication preference) 见 slash command Step 1 (不在此重复)。本节只补 rationale。
+> **6 categories** (拍板/裁决 · Reframe · Push-back · Instinct · Mid-session 补充 · Communication preference) 见 SKILL.md Step 1 (不在此重复)。本节只补 rationale。
+> (此前本行写「5 categories」, 漏了 2026-08-06 加的「拍板/裁决」那类 —— 2026-08-21 dogfood 发现并修正。)
 
 **Why verbatim, not paraphrase**: Paraphrasing loses ~40% of nuance (tone, urgency markers, scope qualifiers). 尤其 **Instinct** 类 ("我觉得" / "顺便 X") — 这些是 next CC **can't derive from git log** 的唯一信号源, 丢了就永久丢了。Copy original text + approximate timestamp。
+
+**Why 每条还要标「落点」(诉求对账)**: 提取信号回答的是"用户说过什么", **不回答"这些都做了吗"**。
+这两件事之间的落差就是丢球发生的地方 —— 一次交接里用户分散提十几条需求是常态, 全靠执笔者自己记住哪条还没落地。
+项目侧 `AGENTS.md` 早有「交付前需求对账(防丢球)」这条铁律, 而 handoff 作为**交付前的最后一道**反而没有, 是 2026-08-21 dogfood 找出的唯一一处"最该防却没设防"。
+落点行刻意做成**给已有信号加一行**而非另起一张对账表: 另起的表要人重新想内容, 会空会腐; 落点是从已提取信号机械派生的, 且对账发生在写 §🔴 的当下而不是整篇写完后。
+格式与四类硬信号的限制见 SKILL.md Step 1 § 诉求对账 —— 那条「`是约束不是活` 只对 Push-back / Communication preference 开放」的限制**就是整个机制的闸门**, 去掉它判据即恒真。
 
 ---
 
@@ -100,7 +107,11 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
 ## Step 3: Memory hygiene + index — full sub-check protocol
 
-8 sub-checks. Run all 8. Aggregate output as numbered proposal table for user confirm.
+**6 sub-checks (3a–3f)** —— 与 SKILL.md Step 3 表格逐条对应, 以那张表为准。
+Aggregate output as numbered proposal table for user confirm.
+
+> ⚠ **本文档把其中的 3b 拆成三小节展开** (`3b` / `3b-extra` / `3b-extra-2`) —— 它们**合起来 = SKILL.md 表格里的那一条 3b**「Context-file health」, 不是三条独立 sub-check。拆开只是为了分别讲清各自的事故来源, 别按小节数去数 sub-check。
+> (此前本行写「8 sub-checks. Run all 8」, 与 SKILL.md 的 6 条对不上 —— 2026-08-21 dogfood 发现并修正。)
 
 ### Step 3a: Memory drift scan
 
@@ -252,6 +263,10 @@ After writing, grep your own doc for:
 - Any "我们之前讨论的 X" → replace with verbatim user quote + timestamp.
 - **Doc-template lint**: 你写的 handoff doc 必须含全 6 个 required section header (🎯 took over / 🔴 verbatim signals / 📋 shipped / ⚠ pending / 🚨 warnings / 📌 live state). grep 自己的 doc, 缺任一 → 补上再 output. (历史: 出现过几个 handoff doc 缺 verbatim+live-state 章节, 退化成 narrative ship-log.)
 - **报喜 scope lint**: doc / 本 turn 输出里出现 "闭环 (完成/跑通)" / "全线完成" / "整条线 (通了)" 类**完成性断言** → 必须紧跟「当前档位 + 有意没做的」清单。**局部完成 (单个 Plan / 一段管道) 禁止写成整线闭环** — 接班丢失整条线设计意图的事故里, 一个局部 Plan 完成被报成 "闭环完成", 直接加重用户 "是不是漏了很多" 的感觉。注意是提示性检查: 描述**目标**的 "闭环" ("目标是让 X 闭环") 不算, 只查**声明已达成**的用法。
+- **⭐ 诉求对账 lint (防丢球, 2026-08-21 加)**: §🔴 里每条信号必须有 `→ 落点:` 行。两种伪通过要一并查:
+  (1) 拍板 / Reframe / Instinct / Mid-session 补充 四类里标了 `是约束不是活` 的 → 判为漏项, 那四类必须落到 §📋 或 §⚠;
+  (2) 标 `已做` 却给不出 PR#/commit — 或核实类标了却给不出**可被下一棒复核**的证据(命令+输出/文件:行/具体结论, 光写"已确认"不算) → 按本节第一条降级 🟡。
+  ⚠ 这条 lint 的价值全在(1): 没有它, 每条都标"是约束"就能全身而过。
 - **接班 prompt lint**: Step 4 生成的接班 prompt 缺「内化复述」段 → 补 (见 Step 4 §「内化复述」)。
 
 ---

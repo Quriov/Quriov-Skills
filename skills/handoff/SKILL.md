@@ -6,8 +6,16 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-21 -->
-> 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
+<!-- handoff-skill-rev: 2026-08-21b -->
+> 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
+>
+> ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
+>
+> - **你此刻正在执行的** = session 启动时加载的那份快照(就是你正在读的这段)。Step 0.5 更新的是磁盘, **不改变本次执行的版本**(刻意如此, 别中途切协议)。
+> - **磁盘上装的** = `grep handoff-skill-rev ~/.agents/skills/handoff/SKILL.md`(Claude Code 的 `~/.claude/skills/handoff/` 是软链, 同一份)。跑过 `npx skills update -g` 之后, 它会**领先于**你正在执行的那份。
+> - **源仓最新的** —— 判据就是 Step 0.5 那条命令的输出本身: 打印了 `Updated handoff` = 磁盘刚才是落后的; 没有它 = 磁盘已经等于源仓。不用另跑命令。
+>
+> 🚨 **「磁盘落后于源仓」真会发生, 而且没有任何提示**(2026-08-21 实测): 上一棒把改动推上了公开仓、源仓 rev 已是 `2026-08-21`, 但**本机从没拉回来**, 磁盘停在 `2026-08-20` —— 那一棒因此全程跑的是**旧版保鲜脚本**(旧版把「项目显式声明」放在最后的 else 分支, 对 state 搬去非常见路径的仓会给假红)。**推 PR ≠ 本机拿到了**, 这两件事之间隔着一次 `npx skills update -g`。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
 
@@ -68,6 +76,46 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 
 ⚠ **写下这行不等于交付** —— 还必须**回写到那张卡上** (见 Step 3b-任务板接线第 5 条)。写进 handoff 只是留痕, 卡顶才是下一棒真正会看的地方。
 
+### ⭐ 每条信号必须标「落点」—— 诉求对账 (防丢球)
+
+提取完不算完。**在 handoff doc 的 §🔴 里, 每条 verbatim 原话紧跟一行落点**:
+
+```
+→ 落点: <按下表选一个>
+```
+
+> ⚠ 刻意不写「N 选一」: 选项会增删, 写死数字下次就对不上 —— 本次 dogfood 修的 ④ 正是这个病
+> (`SKILL.md` 说 6 条 sub-check、protocol doc 说 8 条; Step 1 说 6 类信号、protocol doc 说 5 类)。
+> **凡是"另一处要跟着改"的数字, 默认都会腐。**
+
+| 落点写法 | 用于 | 硬要求 |
+|---|---|---|
+| `已做 → §📋 <PR#/commit>` | 本棒交付了代码/文档 | 给不出 PR 号或 commit hash 就不许写这个 |
+| `已做(核实类) → <一句可复核的证据>` | 用户要的是"查一下/看一眼", 你查了 | 证据必须**可被下一棒复核** (命令+输出 / 文件:行 / 具体结论)。⚠ 光写"已确认"不算 |
+| `部分完成 → §📋 <已交付的> + §⚠ <剩下的>` | 做了一半 | **两个指针都必须真有内容** — 比 `已做` 更严, 不是逃生舱 |
+| `未做 → §⚠ pending` | 没做, 交给下一棒 | §⚠ 里必须真有对应条目 |
+| `有意不做 → §⚠ deferred: <一句理由>` | 判断了不该做 | §⚠ 里必须真有对应条目 |
+| `是约束不是活` | 这条不产生动作 | **仅限 Push-back / Communication preference 两类** |
+
+> 📎 **不禁止自定义 section**: 落点必须*指向* §📋 / §⚠, 但细节可以在别处展开 —— 正确写法是 §⚠ 里留一条 + 另起小节铺开, 两全。
+> (2026-08-21 实例: 上一棒的 4 条 dogfood 发现铺在自造的 §🔬 里, 同时 §⚠ 第一句指向它 —— 这样做是对的。)
+
+🚨 **「是约束不是活」只对两类开放** —— 拍板 / Reframe / Instinct / Mid-session 补充 这**四类必须**落到 §📋 或 §⚠ 之一。它们都是"用户要的东西", 不许拿"这是约束"把自己放过去。
+
+> 这条限制**就是本机制的闸门**。没有它, 每条都标「是约束不是活」就能全身而过 —— 判据恒真, 跟没有一样。
+> (同类病见 memory `feedback-process-a-predicate-that-can-never-be-true`: 恒真/恒假的判据跟「一切正常」长得一模一样。)
+
+> 🔑 **为什么是"给已有信号加一行", 而不是另起一张对账表**: 本 skill 一路在治的病就是"又一个要人记得填的清单"——
+> 另起的表会空、会腐 (实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。而落点行是**从 Step 1 已经提取出来的信号机械派生**的: 信号已经在那了, 只是给每条标一个去向。
+> 顺带的好处: 对账发生在**写 §🔴 的当下**, 信息最新鲜的时候, 而不是整篇写完再回头找。
+
+> 🚨 **出处 (2026-08-21 dogfood)**: 项目侧 `AGENTS.md` 里本来就有「交付前需求对账(防丢球)」这条铁律, **handoff 反而没有** ——
+> Step 1 只提取*信号*, 没有任何一步要求回头核对「用户提的都做完了吗」。而一次交接里用户分散提十几条需求是常态, 全靠执笔者自己记。
+> **这正是 handoff 最该防的漏球, 却是它唯一没设防的一处。**
+
+> 🔬 **自我证伪条件**: 若之后连续三棒的 §🔴 里, 落点行清一色是 `已做`(没有任何 `pending` / `deferred`), 说明它被当成了走过场的填空 ——
+> 那时再考虑上机器校验 (仿 `scripts/handoff-freshness-check.sh` 做个 grep 脚本), **而不是在这段话上再加一句"请认真填"**。
+
 ## Step 2: Identify track + draft handoff doc
 
 ### Step 2a: Track identification (MUST `AskUserQuestion` if no exact match)
@@ -99,7 +147,7 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
 Required sections (this exact order):
 1. **🎯 What this CC took over from / handed to** (1 paragraph + previous handoff path)
-2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps)
+2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps; **每条原话紧跟一行 `→ 落点:`** — 见 Step 1 § 诉求对账。这是本 doc 唯一的防丢球机制)
 3. **📋 What shipped this turn** (PR list + commit hashes — brief, git log has detail)
 4. **⚠ What's still pending / deferred** (with `blockedBy:` if applicable)
 5. **🚨 Warnings for the next CC** (specific gotchas this turn)
@@ -170,6 +218,31 @@ Fill 4 variables:
 
 ⚠ Template body 含 ```bash``` code block — Step 6 output 必须 **4 反引号** ```` fence (内 3 反引号 bash 不破碎).
 
+### Step 4b: 下一任 session 标题 (项目有命名规则文件才做; 没有则零变化)
+
+有些项目给常驻 session 定了命名规则 (线名 + 版本号, 每次交接递进一格), 好让人在一堆 session 里一眼看出「这是哪条线、第几棒」。**本 skill 不定义任何命名规则, 只负责: 项目有规则文件就读它、算出下一任标题、写进 init prompt 首行。**
+
+**按序探测** (命中任一即停):
+
+1. grep 项目 `CLAUDE.md` / `AGENTS.md` 里的 session 命名/生命周期指针 (关键词 `session-lifecycle` / `session 命名` / `session 形态`)
+2. `ls context/methods/session-lifecycle.md docs/methods/session-lifecycle.md .claude/session-lifecycle.md 2>/dev/null`
+
+**没命中 → 什么都不做**, init prompt 与不加本步时**逐字一致**。这是默认路径, 别输出"未检测到命名规则"之类的噪音 (它对多数项目不是缺失, 是本来就没有这回事)。
+
+**命中则**:
+
+1. **Read 那个文件, 按它写的规则算** —— 版本怎么递进 (+0.1? +1? 进位规则?)、标题长什么样、要不要带"第 N 任", **一律以该文件为准**。⚠ **别把任何具体规则背进脑子当通用常识** —— 各项目不同, 且会改。
+2. **当前版本从哪来**: 你自己这个 session 的标题 (通常你知道); 不知道 → 看项目最近一份 handoff / active-tracks 里的标题行; 再不行 **问用户, 别猜**——猜错会让版本号断档或倒退。
+3. **写进 init prompt 首行**, 并明确要求接班方开局自查改名, 例:
+
+   ```
+   你是 <线名> v<下一个版本>(第 N 任)。开局第一件事: 核对本 session 标题, 不符就改成这个。
+   ```
+
+⚠ **只对"会有下一棒"的常驻线做**。一次性/单开/ad-hoc session 通常没有下一任, 也常由派发方命名 —— 这类跳过本步。
+
+> 🔑 **为什么焊进 handoff**: 「开局即命名」如果只写在规约文件里, 就是又一个"靠接班的人记得" —— 而 handoff 产出 init prompt 是**每次交接的必经之路**。把标题算好、直接写进接班方读到的第一行, 接班方就不需要"记得"命名。同款思路见 Step 0.5 (skill 自更新) 与 Step 3b (拍板回写)。
+
 ### Step 4c: 把「本 session 的 worktree 可否回收」算好, 写进接班 prompt
 
 **只在本 session 跑在独立 worktree 里时做** (`git rev-parse --git-common-dir` 与 `--git-dir` 不同即是; 在主检出里跑 → 整段跳过)。
@@ -202,31 +275,6 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 2. **不加 `--force`** —— 让 git 自己兜住脏工作区这道底。
 3. **只对"已被接棒取代"的前任做**。⚠ 有些项目把**休眠 session 视为正当态**(有意留着待复用/仍负回复义务), 它们的 worktree **不该清**。区别在于: 被接棒的前任不会再被复用了 —— 而**只有你知道自己正在被谁接棒**, 外部扫描器判不出来。这正是这件事该由 handoff 做、而不是做成定时清理任务的原因。
 
-### Step 4b: 下一任 session 标题 (项目有命名规则文件才做; 没有则零变化)
-
-有些项目给常驻 session 定了命名规则 (线名 + 版本号, 每次交接递进一格), 好让人在一堆 session 里一眼看出「这是哪条线、第几棒」。**本 skill 不定义任何命名规则, 只负责: 项目有规则文件就读它、算出下一任标题、写进 init prompt 首行。**
-
-**按序探测** (命中任一即停):
-
-1. grep 项目 `CLAUDE.md` / `AGENTS.md` 里的 session 命名/生命周期指针 (关键词 `session-lifecycle` / `session 命名` / `session 形态`)
-2. `ls context/methods/session-lifecycle.md docs/methods/session-lifecycle.md .claude/session-lifecycle.md 2>/dev/null`
-
-**没命中 → 什么都不做**, init prompt 与不加本步时**逐字一致**。这是默认路径, 别输出"未检测到命名规则"之类的噪音 (它对多数项目不是缺失, 是本来就没有这回事)。
-
-**命中则**:
-
-1. **Read 那个文件, 按它写的规则算** —— 版本怎么递进 (+0.1? +1? 进位规则?)、标题长什么样、要不要带"第 N 任", **一律以该文件为准**。⚠ **别把任何具体规则背进脑子当通用常识** —— 各项目不同, 且会改。
-2. **当前版本从哪来**: 你自己这个 session 的标题 (通常你知道); 不知道 → 看项目最近一份 handoff / active-tracks 里的标题行; 再不行 **问用户, 别猜**——猜错会让版本号断档或倒退。
-3. **写进 init prompt 首行**, 并明确要求接班方开局自查改名, 例:
-
-   ```
-   你是 <线名> v<下一个版本>(第 N 任)。开局第一件事: 核对本 session 标题, 不符就改成这个。
-   ```
-
-⚠ **只对"会有下一棒"的常驻线做**。一次性/单开/ad-hoc session 通常没有下一任, 也常由派发方命名 —— 这类跳过本步。
-
-> 🔑 **为什么焊进 handoff**: 「开局即命名」如果只写在规约文件里, 就是又一个"靠接班的人记得" —— 而 handoff 产出 init prompt 是**每次交接的必经之路**。把标题算好、直接写进接班方读到的第一行, 接班方就不需要"记得"命名。同款思路见 Step 0.5 (skill 自更新) 与 Step 3b (拍板回写)。
-
 ## Step 5: Self-lint handoff doc
 
 Grep own doc for:
@@ -235,6 +283,9 @@ Grep own doc for:
 - "我们之前讨论的 X" → replace with verbatim user quote + timestamp
 - **Doc-template lint**: handoff doc 必须含全 6 个 required section header (🎯/🔴/📋/⚠/🚨/📌)。grep 自己的 doc 缺任一 → 补齐再 output
 - **报喜 scope lint**: doc/输出里出现"闭环 (完成)/全线完成/整条线 (跑通)"类断言 → 必须紧跟「当前档位 + 有意没做的」清单; 局部完成 (一个 Plan/一段管道) **禁止**写成整线闭环 (提示性检查, 描述目标的"闭环"不算)
+- **⭐ 诉求对账 lint (防丢球)**: §🔴 里**每条**信号必须有 `→ 落点:` 行 — 缺任一 → 补齐再 output。另查两种伪通过:
+  - 【拍板 / Reframe / Instinct / Mid-session 补充】四类里凡标 `是约束不是活` → **判为漏项**, 回去给它找真落点 (§📋 或 §⚠)
+  - 标了 `已做` 却给不出 PR#/commit(或核实类给不出**可复核**证据) → 按本节第一条降级成 🟡 designed / pending
 - **接班 prompt lint**: Step 4 生成的 prompt 缺「内化复述」段 → 补
 - **push-only lint**: Step 7 没开成 PR (无 gh / Codex 环境) → 输出**必须**含 "⚠ 无法开 PR + 分支名 + 请人工开 PR merge, 否则下个 session 看不到 handoff"; 静默降级时**不许报 0 warnings**
 
