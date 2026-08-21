@@ -80,13 +80,21 @@ User is context-fatigued at end of long session and trusts you to leave clean br
 
 跑:
 - `git log origin/main..HEAD --oneline` — 本 branch 独有 commit
+- `git status --porcelain` — 工作区干不干净 (下面分流要用)
 - `gh pr list --head <current-branch> --state merged` — 本 branch 的 commit 是否已 squash-merged 但 branch 没删
 
-**If**:
-- 本 branch 独有 commit 内容**跟你本 turn task 不一致** → 你可能误用了 stale branch, **STOP + ASK user**:
+**三种情形分流** (2026-08-21 宇通拍板改的; 此前三种一律 STOP+ASK):
+
+- **已 squash-merged + 工作区干净** → ✅ **自动开新分支, 不问**:
+  `git checkout main && git pull && git checkout -b <new>`, 然后告知一行「起手时站在已合并分支 X 上, 已自动切到 Y」
+- **已 squash-merged + 工作区脏** → 🛑 **STOP + ASK**:
+  > "本 branch 已 merged, 但工作区有未提交改动 `<list>`。切分支会把它们带走或冲突 —— 这些改动要保留吗?"
+- **独有 commit 内容跟本 turn task 不一致** → 🛑 **STOP + ASK**:
   > "我现在 branch `<X>` 有这些 commit `<list>`, 但跟本 turn task 不一致. 是不是我应该开新 branch?"
-- 本 branch 已 squash merged (`gh pr list` 返非空) → **STOP + ASK user**:
-  > "本 branch 已经 squash merged 进 main, 你确定要在它上面继续 commit 吗? 一般应该 `git checkout main && git checkout -b <new-branch>`"
+
+**Why 第一种可以自动**: 它**答案唯一** —— 在已合并分支上继续 commit 是 anti-pattern #8 明令禁止的, 没有第二个选项可选, 问一次纯消耗用户注意力。后两种答案不唯一 (脏工作区那些改动要不要带走 / 这条分支是不是其实该继续用), 必须人判。
+
+⚠ **放松的是"发现之后要不要问", 不是"要不要查"** —— 本步仍是每次必跑的**步骤**。它 2026-08-20/21 两天内在两条线上各救过一次; 眼镜线原话:「我当时并不觉得自己站在死分支上……**如果它是一句『记得检查一下』而不是一个步骤, 我 100% 会跳过**。」把它降级成提醒 = 这道防线消失。
 
 ### Step 2c: Draft handoff doc — format spec
 
@@ -97,7 +105,7 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
 1. **🎯 What this CC took over from / handed to**
    (1 paragraph, citing previous handoff path + next track ID if known)
-2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps)
+2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps; **每条原话紧跟一行 `→ 落点:`** — 见 SKILL.md Step 1 § 诉求对账)
 3. **📋 What shipped this turn** (PR list + commit hashes — keep brief, git log has detail; don't repeat)
 4. **⚠ What's still pending / deferred** (with `blockedBy:` if applicable)
 5. **🚨 Warnings for the next CC** (specific gotchas you learned this turn)
@@ -484,6 +492,8 @@ stale-branch 误用 incident 的 verbatim 根因. If active-tracks.yaml has no m
 
 #### 8. Don't commit on a stale branch you didn't own
 Step 2b verify branch ownership. If your task is unrelated to the branch you happen to be checked out on, `git checkout main && git checkout -b <new-branch>`. If unsure, ASK user.
+
+⚠ **2026-08-21 更新**: 「已 squash-merged **且工作区干净**」这一种改为**自动切新分支 + 告知**, 不再 ASK (答案唯一, 问了纯消耗注意力)。工作区脏、或分支内容与本 turn task 不符, 仍然 ASK。详见 Step 2b 三种情形分流表。**禁止在已合并分支上继续 commit 这条本身没有放松。**
 
 #### 9. Don't merge PR without `--delete-branch` flag
 `gh pr merge --squash --delete-branch`. Stale branches 累积是 stale-branch 误用 case 的根因 (几十分钟后另一 session 误用). 见下面 "multi-worktree gh pr merge" 那条 for 多 worktree env workaround.
