@@ -240,6 +240,16 @@ Fill 4 variables:
 
 1. grep 项目 `CLAUDE.md` / `AGENTS.md` 里的 session 命名/生命周期指针 (关键词 `session-lifecycle` / `session 命名` / `session 形态`)
 2. `ls context/methods/session-lifecycle.md docs/methods/session-lifecycle.md .claude/session-lifecycle.md 2>/dev/null`
+3. `ls "$HOME/.claude/rules/common/session-lifecycle.md" 2>/dev/null` —— **用户级 fallback**
+
+> **为什么要第 3 条** (issue #21, 0813 实证): 命名规则可能是**跨仓生效**的 —— 定在本机用户级、
+> 管这台机器上所有项目的 session。只探项目内的话, 这类规则在**没有项目规则文件的仓**里必然漏接:
+> 两条探测全空 → 按设计跳过 → init prompt 不带标题首行 → 交接链断在这里, 只能靠人手动命名。
+> 已实测断过两棒。
+>
+> 顺序是**项目优先**: 项目有自己的规则文件时用项目的 (项目可以有跟全局不同的规则), 两者都无才轮到用户级。
+> 路径按 `$HOME` 展开; 文件不存在 = 静默跳过, 零输出变化 (同上面两条的「无则跳」纪律)。
+> ⚠ 规则**仍然只从文件里读**, 不背进本 skill —— 用户级文件跟项目文件一样, 内容各机不同且会改。
 
 **没命中 → 什么都不做**, init prompt 与不加本步时**逐字一致**。这是默认路径, 别输出"未检测到命名规则"之类的噪音 (它对多数项目不是缺失, 是本来就没有这回事)。
 
