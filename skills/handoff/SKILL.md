@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-20 -->
+<!-- handoff-skill-rev: 2026-08-21 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。想确认拿到最新版:`grep handoff-skill-rev ~/.claude/skills/handoff/SKILL.md`(Codex 等其他 harness 同理 grep 你装的那份, 通常在 `~/.agents/skills/handoff/SKILL.md`),对比日期 ≥ 你预期的更新日 = 拿到了。拉更新用 `npx skills update -g`。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
@@ -112,7 +112,7 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 | Sub | What | Tool |
 |-----|------|------|
 | 3a | Memory drift scan | `grep -rEn "(完全无人\|已弃用\|已停用\|wind down\|无流量\|stub\|未实现)" memory/` → cross-validate Step 0 |
-| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin: 刷新**本仓探测到的那份 state SoT** (强制, 非 propose; freshness 闸门验它)。探测顺序: `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/` → 项目 `CLAUDE.md`/`AGENTS.md` 里声明的那份。yaml 形态改本 track 的 `last_updated`=今天; **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
+| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin: 刷新**本仓探测到的那份 state SoT** (强制, 非 propose; freshness 闸门验它)。探测顺序: **项目 `CLAUDE.md`/`AGENTS.md` 里的显式声明优先**(写法: 一行里同时出现 `state SoT`/`状态单源` 标记词和路径, 如 `> 本仓 state SoT = \`context/worklines/\``), 无声明才退回常见路径 `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/`。⚠ 只认**显式标记**, 不认正文里顺口提到的路径 —— 否则叙述性提及会被当成声明。yaml 形态改本 track 的 `last_updated`=今天; **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
 | 3c | Handoff deferred 过期 | Read 最近 3-5 handoffs, scan deferred items, propose archive done |
 | 3d | CC 自塞垃圾 | Pattern: `next-step-*.md`, `phase[0-9][a-z]-state.md`, low-density meta docs → propose archive |
 | 3e | External KB read-only verify | Project CLAUDE.md mentions 外部 KB (Notion / Confluence / wiki 等) → 跑 read query 不需 user confirm |
