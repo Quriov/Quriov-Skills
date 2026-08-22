@@ -42,16 +42,40 @@ SOT=""; KIND=""
 #    拿弱信号当强信号的代理, 跟本 skill 一路在治的是同一个错。现在要求同一行里出现
 #    显式标记词 + 路径, 才算这个仓"主动指认"了自己的 state SoT。
 #    声明写法(项目侧一行即可): > 本仓 state SoT = `context/worklines/`
+#    ⚠ 2026-08-22 再修 (眼镜仓实撞): 只要求"同一行里有标记词 + 路径"仍然不够 ——
+#    该仓 AGENTS.md 有一行叙述:「…同轮编辑卡顶「📍 现状」块(**动态状态单源**,0718 立,
+#    详 [task-board](./context/methods/task-board.md))…」, 既含标记词(「状态单源」, 但它说的是
+#    **卡顶状态块**, 与 state SoT 是两回事)又含路径, 而它**排在真声明前面** ⇒ 真声明
+#    (`> **本仓 state SoT = \`context/worklines/\`**`)被挡住, 闸门去查了那份被该仓明令
+#    「不要手改」的**机器生成**目录 active-tracks.md。
+#    ⚠ 代价不只是误红: 它**诱导执行者去手改那个机器生成的文件**才能过闸 —— 2026-08-22
+#    真发生了一次(当场撤回)。**一个会把人推向错误动作的闸门, 比没有闸门更糟。**
+#    ⇒ 分两档: **①a 严格式(标记词紧跟赋值再跟路径)优先**; 全仓找不到严格式才退 ①b 松散式
+#    (松散式保留 = 对已用宽松写法声明过的老仓零回归)。
+MARK='(state[ _-]?sot|状态单源|工作板正本|state 单源)'
+PATHRX='(context|docs|\.claude)/[A-Za-z0-9_/.-]*'
+pick_path() {  # stdin: 候选路径若干; stdout: 第一个真实存在的
+  sed 's#[.,;:)`]*$##' | while read -r c; do [[ -e "$ROOT/$c" ]] && { echo "$c"; break; }; done
+}
+# ①a 严格式: 标记词 [空白] (=|:|:) [空白] [可选引号/反引号] 路径 —— 即本 SKILL.md 教的写法
 for decl in "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"; do
   [[ -f "$decl" ]] || continue
-  cand=$(grep -iE '(state[ _-]?sot|状态单源|工作板正本|state 单源)' "$decl" 2>/dev/null \
-         | grep -oE '(context|docs|\.claude)/[A-Za-z0-9_/.-]*' \
-         | sed 's#[.,;:)`]*$##' \
-         | while read -r c; do [[ -e "$ROOT/$c" ]] && { echo "$c"; break; }; done)
+  cand=$(grep -oiE "${MARK}[[:space:]]*(=|:|：)[[:space:]]*[\`\"']?${PATHRX}" "$decl" 2>/dev/null \
+         | grep -oE "$PATHRX" | pick_path)
   if [[ -n "$cand" ]]; then
     SOT="$ROOT/$cand"; KIND=$([[ -d "$ROOT/$cand" ]] && echo dir || ([[ "$cand" == *.y*ml ]] && echo yaml || echo md)); break
   fi
 done
+# ①b 松散式兜底: 标记词与路径同行即可 (老仓兼容; 有严格式时永远走不到这里)
+if [[ -z "$SOT" ]]; then
+  for decl in "$ROOT/CLAUDE.md" "$ROOT/AGENTS.md"; do
+    [[ -f "$decl" ]] || continue
+    cand=$(grep -iE "$MARK" "$decl" 2>/dev/null | grep -oE "$PATHRX" | pick_path)
+    if [[ -n "$cand" ]]; then
+      SOT="$ROOT/$cand"; KIND=$([[ -d "$ROOT/$cand" ]] && echo dir || ([[ "$cand" == *.y*ml ]] && echo yaml || echo md)); break
+    fi
+  done
+fi
 # ② 常见路径 (无声明时的兜底; 第一顺位保持原路径 = 对老仓零回归)
 if [[ -z "$SOT" ]]; then
   if   [[ -f "$ROOT/.claude/active-tracks.yaml" ]]; then SOT="$ROOT/.claude/active-tracks.yaml"; KIND=yaml
