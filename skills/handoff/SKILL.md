@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-25b -->
+<!-- handoff-skill-rev: 2026-08-25c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -227,6 +227,21 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 
 Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
+**文档顶部必填一行元信息** (紧跟一级标题, 与正文之间空一行) —— **仅在项目有 session 命名规则时填**
+(见 Step 4b; 没有规则的项目整行省略, 零变化):
+
+```
+> Session: <本棒 session 标题> → 下一棒 <下一任标题>
+```
+
+> 🔑 **为什么这行必须落在文档里**: 版本号此前**唯一的载体是桌面版 UI 里那行标题字符串** —— 而 AI 读不到它
+> (Step 4b 第 2 条), handoff 文档不写它, active-tracks 也不写它。
+> ⇒ 用户每次手动改名, 都只是给链条**续了一口气, 而那口气没被记进任何下一棒读得到的地方** ⇒ 下一棒又回到零。
+>
+> 📌 **实测对照** (2026-08-25, 同一台机器同一套规则): 某条线连续 **4 棒**都算不出版本号, 每一棒都得用户
+> 手动改名; 而同机其他线因为 init prompt 首行一直带着标题, 版本号自己从 v1.0 递进到了 **v4.7**。
+> **差别不在规则, 在有没有一个 AI 读得到的载体。**
+
 Required sections (this exact order):
 1. **🎯 What this CC took over from / handed to** (1 paragraph + previous handoff path)
 2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps; **每条原话紧跟一行 `→ 落点:`** — 见 Step 1 § 诉求对账。这是本 doc 唯一的防丢球机制)
@@ -324,8 +339,27 @@ Fill 4 variables:
 **命中则**:
 
 1. **Read 那个文件, 按它写的规则算** —— 版本怎么递进 (+0.1? +1? 进位规则?)、标题长什么样、要不要带"第 N 任", **一律以该文件为准**。⚠ **别把任何具体规则背进脑子当通用常识** —— 各项目不同, 且会改。
-2. **当前版本从哪来**: 你自己这个 session 的标题 (通常你知道); 不知道 → 看项目最近一份 handoff / active-tracks 里的标题行; 再不行 **问用户, 别猜**——猜错会让版本号断档或倒退。
-3. **写进 init prompt 首行**, 并明确要求接班方开局自查改名, 例:
+2. **当前版本从哪来** —— ⚠ **不是「你自己知道」。你读不到自己 session 的标题**:
+   `list_sessions` 工具说明原文「The current session is **excluded**」; `get_session` 原文「Must **not** be
+   the current session」—— **两个查询工具都把当前 session 排除在外**, 系统提示里也没有标题。
+   (本条此前写的是「(通常你知道)」, 那是个错误假设, 2026-08-25 实测推翻。)
+
+   按序取, 命中即停:
+   1. **最近一份 handoff 文档顶部的 `Session:` 行** (Step 2c 必填元信息) ← 主路径, 这就是那行存在的理由
+   2. 项目 active-tracks / 最近 handoff 正文里的标题行
+   3. **`set_session_title(session_id="self", title=<先填个临时值>)` 的返回值会带 `was "<旧标题>"`** ——
+      目前唯一能读到自己标题的手段, 但它是**副作用式**的(得改一次再改回去), 只在前两条都空时用
+   4. 仍然拿不到 → **问用户, 别猜** —— 猜错会让版本号断档或倒退
+
+   > 📌 **为什么这条值得写这么长** (2026-08-25 活体案例): 有一棒的执笔者按「(通常你知道)」去 `list_sessions`
+   > 里找自己, 没找到, 于是从列表里挑了个**长得像**的版本号、推断「用户记混了」, 据此**把 session 改成了错名**。
+   > 真相是 `set_session_title` 的返回值给出的 —— 它原本就叫用户说的那个。**读不到 ≠ 不存在。**
+3. **写进两个地方** (缺任一, 链条就断在下一棒):
+   - **init prompt 首行** —— 给**下一棒**看, 并明确要求它开局自查改名
+   - **handoff 文档顶部的 `Session:` 行** (Step 2c) —— 给**下下棒**看的持久载体; init prompt 是一次性的,
+     文档才留得住
+
+   例 (init prompt 首行):
 
    ```
    你是 <线名> v<下一个版本>(第 N 任)。开局第一件事: 核对本 session 标题, 不符就改成这个。
@@ -362,6 +396,31 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 
 三条全过 = 内容都在远端, 本地删掉随时 `git fetch` 取回, **PR 开着 / 已合 / 被关掉都无所谓**。
 
+> ⚠ **执行者是下一棒, 不是你 —— 判据到它手里时前提已经变了** (2026-08-25 实测):
+> 你在 Step 7 push 之后跑这三条时, 分支还在、上游还在, 三条都能正常返回真假。
+> 但**真正执行 `git worktree remove` 的是接班方**, 而那时通常已经: PR 合并 → 远程分支被自动删 →
+> **该 worktree 掉成 detached HEAD**。此时后两条判据**不返回真假, 直接报错**:
+>
+> ```
+> git log @{u}.. --oneline            → fatal: HEAD does not point to a branch
+> git rev-parse --abbrev-ref '@{u}'   → fatal: HEAD does not point to a branch
+> ```
+>
+> fatal 是**第三种状态**, 而「任一条不过 → 不回收」这个二分结构没给它位置 ⇒ 接班方照字面判「不能回收」
+> ⇒ **worktree 照样攒下来, 只是把攒的时点从这一棒推到了下一棒。**
+>
+> ✅ **分支已消失时改用这组判据** (与主路径等价安全 —— 内容进的是 PR, 不是分支):
+>
+> ```bash
+> git -C <worktree> status --porcelain    # 仍然必须为空
+> git -C <worktree> stash list            # 必须为空 —— 分支没了, stash 就是最后的本地孤本
+> gh pr list --head <原分支名> --state all --json number,state   # 必须 MERGED 或 CLOSED
+> ```
+>
+> ⚠ 这里用 **PR 状态**、而不是上面刚否掉的 `git merge-base --is-ancestor` —— 两者不是一回事:
+> 后者是本地 git 推断(会被 squash 骗), 前者是 GitHub 的权威记录(squash 不影响它)。
+> ⚠ 还有一层兜底: **`git worktree remove` 不加 `--force`**, 真有脏东西 git 自己会拦。
+
 > ⚠ **别拿「已合进 main」当判据 (实测会误判)**: squash merge 会把分支压成一个新 commit, 原 commit **不在** main 的历史里 —— `git merge-base --is-ancestor HEAD origin/main` 对**已经合并**的分支照样返回 false。实测: PR 已 merged、内容全在远端, 该判据仍说"没进 main"。用它当闸门会把安全的判成不安全。
 
 **三条全过** → 在接班 prompt 里写一行 (路径写绝对路径):
@@ -369,7 +428,12 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 ```
 ♻️ 前任 worktree 可回收: <绝对路径>(分支 <branch>,已确认工作区干净、无未推送 commit)
    你读完交接、确认没有要回看的东西之后:git worktree remove <绝对路径>
+   ⚠ 复核时若看到 detached HEAD / `fatal: HEAD does not point to a branch`:那是 PR 合并后
+     远程分支被删的正常表现,不是危险信号 —— 改判「工作区干净 + stash 空 + PR 已 MERGED/CLOSED」。
 ```
+
+⚠ **回收指令里要连"怎么复核"一起写**(上面那两行 ⚠ 别省): 你写下的是**你那个时点**的结论,
+而接班方复核时看到的是**变化之后**的状态。只给结论、不给复核口径, 它一看到 fatal 就会停手。
 
 **任一条不过** → **不要**写回收指令, 改成如实说明, 例:`⚠ 前任 worktree <路径> 有未提交改动, 先别删 —— 需要人看一眼是否还要`。
 
@@ -385,6 +449,8 @@ Grep own doc for:
 - "已 verified" / "已 test" → MUST cite command + timestamp; else "声称 verified, 未独立验证"
 - "我们之前讨论的 X" → replace with verbatim user quote + timestamp
 - **Doc-template lint**: handoff doc 必须含全 6 个 required section header (🎯/🔴/📋/⚠/🚨/📌)。grep 自己的 doc 缺任一 → 补齐再 output
+- **`Session:` 行 lint (条件必填)**: **Step 4b 命中了命名规则文件** → doc 顶部必须有 `> Session: <本棒> → 下一棒 <下一任>` 行; 缺 → 补齐再 output。**Step 4b 没命中 → 本条整条跳过**(没有规则的项目本来就不该有这行)。
+  > 🔑 这条 lint 就是那个字段的**必经之路** —— 没有它, 「顶部加一行」又是一个"靠执笔者记得"的仪式, 而提醒必腐。
 - **报喜 scope lint**: doc/输出里出现"闭环 (完成)/全线完成/整条线 (跑通)"类断言 → 必须紧跟「当前档位 + 有意没做的」清单; 局部完成 (一个 Plan/一段管道) **禁止**写成整线闭环 (提示性检查, 描述目标的"闭环"不算)
 - **⭐ 诉求对账 lint (防丢球)**: §🔴 里**每条**信号必须有 `→ 落点:` 行 — 缺任一 → 补齐再 output。另查两种伪通过:
   - 【拍板 / Reframe / Instinct / Mid-session 补充】四类里凡标 `是约束不是活` → **判为漏项**, 回去给它找真落点 (§📋 或 §⚠)
