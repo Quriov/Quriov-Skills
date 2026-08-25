@@ -31,6 +31,12 @@ User is context-fatigued at end of long session and trusts you to leave clean br
 
 **Cite output verbatim in your handoff doc § 6 (Live state at close)**. Don't paraphrase.
 
+**⚠ `BLOCKING` 约束的是顺序, 不是粒度** (2026-08-25 澄清): 它的含义是「**先**拿到 ground truth, **再**读 memory / handoff doc / CLAUDE.md」—— 防的是拿 memory 自报当事实。它**不要求**这几条命令一条一条分开跑。
+
+这一点此前从未写明, 导致默认路径是"照编号列表一轮一条", 而每轮都要重读几十万上下文。实测 256 次真实 handoff: 昂贵档比便宜档多跑 3.6 倍轮次、上下文只差 1.1 倍, 且 84% 的 Bash 是彼此独立的只读查询。合并模板与**退出码的两个反向坑**见 SKILL.md Step 0 § 批量模板。
+
+> 🔑 那段刻意写成**可直接抄的模板**而不是一句"建议批量化": 合并的自然写法 (`;` 串联 / 管道) **恰好都会吞掉失败**, 只给建议不给写法 = 把成本问题换成静默假绿问题。抄模板自动做对, 靠记纪律会腐。
+
 ---
 
 ## Step 1: Verbatim user signals — full rationale

@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-22 -->
+<!-- handoff-skill-rev: 2026-08-25 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -25,12 +25,49 @@ You are about to close a long Claude Code session. The user is context-fatigued 
 
 Before reading any memory / handoff doc / CLAUDE.md, run all 3:
 
-1. `git log origin/main --oneline | head -10` → cite output verbatim in § 6
+1. `git log origin/main --oneline -10` → cite output verbatim in § 6
 2. `git status --short` → cite output
 3. Project's "⚡ Live Verify" section in CLAUDE.md / AGENTS.md → run any listed commands (e.g. `ssh prod docker ps`, `curl /healthz`, 项目自定的状态查询), cite output
    - No such section → project hasn't configured one, skip
 
 **Do NOT trust memory self-report until Step 0 has ground-truth output.**
+
+### ⭐ 这几条合并成**一次**调用 — 直接抄下面的模板
+
+上面写成编号列表, **照字面执行就是一轮一条** —— 而每轮都要重读当时几十万的上下文。
+
+> 📊 **实测 (2026-08-25, 256 次真实 handoff 的成本分析, 由 Harness 线提供)**: 昂贵档比便宜档多跑 **3.6 倍轮次**, 而进入 handoff 时的上下文只差 **1.1 倍** ⇒ **贵不是因为它发生在长 session 末尾, 是流程本身多跑了轮次**。昂贵档 **84%** 的 Bash 调用是彼此独立的只读取状态查询, 被一轮一条地跑。按「有没有改协议/skill 本身」分层后, 这个 3.6 倍在普通业务 handoff 内部**一点没变**。
+
+**合并不违反 `BLOCKING`** —— BLOCKING 约束的是**顺序**(先拿 ground truth 再读 memory, 防 memory drift), **不是粒度**。本 skill 从来没有规定过执行粒度。
+
+```bash
+echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10 || echo "❌ [1] 失败(exit $?)"
+echo "=== [2] 工作区 ==="          ; git status --short                || echo "❌ [2] 失败(exit $?)"
+echo "=== [3] <项目那条> ==="      ; <项目 CLAUDE.md ⚡Live Verify 里那条> || echo "❌ [3] 失败(exit $?)"
+```
+
+🚨 **三条要点缺一不可 —— 第 2 条是前提, 不是附加项**:
+
+1. **`echo "=== [n] … ==="` 分隔** —— cite 时按标记切分, 比逐条跑还整齐 (§📌 要 verbatim 引用整段输出)
+2. **每条 `|| echo "❌"` 独立判成败, 绝不用总退出码** —— 见下表, 有两个**方向相反**的坑
+3. **只合并互相独立的只读查询** —— 写操作、以及有依赖的 (先 grep 出命中才知道读哪个文件) 不合并
+
+⚠ **退出码的两个反向坑 (2026-08-25 逐条实跑验证)**:
+
+| 写法 | 现象 | 后果 |
+|---|---|---|
+| `git log … \| head -10` | 命令**失败**时整体 `exit=0` (拿到的是 head 的) | **假绿** — 失败被吞 |
+| `set -o pipefail` + 同上 | 命令**成功**时整体 `exit=141` (SIGPIPE — head 读够就关管道, 上游被信号杀) | **假红** — 成功被误报成失败 |
+| `cmd1 ; cmd2` | 只反映最后一条 | 假绿 |
+| `cmd1 && cmd2` | 前面一失败, 后面**全不跑** | 看起来像"没验证" |
+
+⇒ **正解是消除管道, 而不是处理管道**: 用命令自带的限制参数 (`git log -n 10`, 不是 `| head -10`) —— 实测退出码在成功 (`0`) 和失败 (`128`) 两个方向都干净, 且**根本不需要 `pipefail`**。
+⇒ **万一必须用管道**: `out=$(cmd) && rc=0 || rc=$?` 先跑完存进变量, 再 `echo "$out" | head -N` —— 捕获到的是命令本身的退出码, head 只作用于已有字符串。
+
+> 🚨 **为什么这里必须给模板, 而不是写一句"建议批量化"**: 合并的**自然写法**就是 `;` 串联或管道, 而这两种**恰好都会吞掉失败**。只说"可以合并"却不给退出码写法, 等于把一个成本问题换成一个**静默假绿**问题 —— 那比多花 token 严重得多 (本 skill 2026-08-21 刚栽过同族的: `$?` 捕获成了 `head` 的退出码)。
+> 抄模板就自动做对了; 靠"记住要注意退出码"不行 —— **提醒必腐, 依赖不腐**。
+
+> 📌 **有一类 handoff 不该按这个优化**: **改 skill / 协议本身**的那种 (改文件 → 开 PR → 等合并 → `npx skills update` 拉回来 → 再验证)。实测它比普通 handoff 贵 **1.28 倍**, 但那是**串行等待的本质** (必须等 PR 状态真的变), 是**真实工作量不是浪费**。**别去砍它。**
 
 ### Step 0.5: 顺手把 skill 自己拉到最新 (非阻塞, 别为它停下)
 
