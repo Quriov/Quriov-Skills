@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-25c -->
+<!-- handoff-skill-rev: 2026-08-25d -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -227,20 +227,23 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 
 Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 
-**文档顶部必填一行元信息** (紧跟一级标题, 与正文之间空一行) —— **仅在项目有 session 命名规则时填**
-(见 Step 4b; 没有规则的项目整行省略, 零变化):
+**文档顶部记一行 session 元信息** (紧跟一级标题, 与正文之间空一行) —— **仅当 Step 4b 命中了命名规则文件时**
+(没命中就整行省略, 零变化):
 
 ```
-> Session: <本棒 session 标题> → 下一棒 <下一任标题>
+> Session: <把 Step 4b 算出的内容原样照抄在这里>
 ```
 
-> 🔑 **为什么这行必须落在文档里**: 版本号此前**唯一的载体是桌面版 UI 里那行标题字符串** —— 而 AI 读不到它
-> (Step 4b 第 2 条), handoff 文档不写它, active-tracks 也不写它。
-> ⇒ 用户每次手动改名, 都只是给链条**续了一口气, 而那口气没被记进任何下一棒读得到的地方** ⇒ 下一棒又回到零。
+⚠ **本 skill 不规定这行的内部结构** —— 记什么、怎么排, **一律以那个规则文件为准**。
+有的规则是「线名 + 版本号递进」, 有的可能按负责人、按主题, 根本没有"下一棒"这个概念。
+**skill 只负责把它记下来, 让下一棒读得到。**
+
+> 🔑 **为什么值得记**: session 标题往往**只活在 harness 的界面里** —— AI 读不到它 (Step 4b 第 2 条),
+> handoff 文档不写它, 项目状态文件也不写它。⇒ 用户每次手动改名, 都只是**续了一口气, 而那口气
+> 没被记进任何下一棒读得到的地方** ⇒ 下一棒又回到零, 于是又得人工介入。
 >
-> 📌 **实测对照** (2026-08-25, 同一台机器同一套规则): 某条线连续 **4 棒**都算不出版本号, 每一棒都得用户
-> 手动改名; 而同机其他线因为 init prompt 首行一直带着标题, 版本号自己从 v1.0 递进到了 **v4.7**。
-> **差别不在规则, 在有没有一个 AI 读得到的载体。**
+> 📌 **实测对照** (2026-08-25, 同一台机器同一套规则): 某条线连续 **4 棒**都算不出该叫什么、每棒都要用户
+> 手动改名; 而同机其他线因为交接首行一直带着标题, 一路自己递进了下去。**差别不在规则, 在有没有载体。**
 
 Required sections (this exact order):
 1. **🎯 What this CC took over from / handed to** (1 paragraph + previous handoff path)
@@ -323,7 +326,15 @@ Fill 4 variables:
 
 1. grep 项目 `CLAUDE.md` / `AGENTS.md` 里的 session 命名/生命周期指针 (关键词 `session-lifecycle` / `session 命名` / `session 形态`)
 2. `ls context/methods/session-lifecycle.md docs/methods/session-lifecycle.md .claude/session-lifecycle.md 2>/dev/null`
-3. `ls "$HOME/.claude/rules/common/session-lifecycle.md" 2>/dev/null` —— **用户级 fallback**
+3. **用户级 fallback** —— 按 harness 各自的位置, 都试一遍:
+
+   ```bash
+   ls "$HOME/.claude/rules/common/session-lifecycle.md" 2>/dev/null   # Claude Code
+   ls "$HOME/.codex/AGENTS.md" 2>/dev/null                            # Codex (grep 里面的命名/生命周期指针)
+   ```
+
+   ⚠ **Codex 侧的 `AGENTS.md` 往往只是指针, 不是规则本体** —— 它可能指向别处的文件(实测有指向
+   `~/.claude/rules/common/` 的), **顺着它指的路径再读一次**, 别把指针当规则。
 
 > **为什么要第 3 条** (issue #21, 0813 实证): 命名规则可能是**跨仓生效**的 —— 定在本机用户级、
 > 管这台机器上所有项目的 session。只探项目内的话, 这类规则在**没有项目规则文件的仓**里必然漏接:
@@ -345,11 +356,17 @@ Fill 4 variables:
    (本条此前写的是「(通常你知道)」, 那是个错误假设, 2026-08-25 实测推翻。)
 
    按序取, 命中即停:
-   1. **最近一份 handoff 文档顶部的 `Session:` 行** (Step 2c 必填元信息) ← 主路径, 这就是那行存在的理由
-   2. 项目 active-tracks / 最近 handoff 正文里的标题行
-   3. **`set_session_title(session_id="self", title=<先填个临时值>)` 的返回值会带 `was "<旧标题>"`** ——
-      目前唯一能读到自己标题的手段, 但它是**副作用式**的(得改一次再改回去), 只在前两条都空时用
+   1. **最近一份 handoff 文档顶部的 `Session:` 行** (Step 2c) ← 主路径, 这就是那行存在的理由
+   2. 项目状态文件 / 最近 handoff 正文里的标题行
+   3. **那个规则文件自己指定的读法** —— 如果它写了的话 (见下方 ⚠)
    4. 仍然拿不到 → **问用户, 别猜** —— 猜错会让版本号断档或倒退
+
+   > ⚠ **本 skill 不会为了读标题去改你的 session 名。**
+   > 某些 harness 上, 改名接口的返回值会带旧标题, 于是"改一次再改回去"能读到自己是谁。**但那是对用户
+   > session 的写操作** —— 有副作用(中途失败会把 session 留在临时值上)、各 harness 行为不一、而且用户
+   > 通常不会预期"交接会改我的 session 名字"。
+   > ⇒ **要不要用这类读法, 由那个规则文件说了算, 不由本 skill 替所有人决定。**
+   > 规则文件明确写了就照它做; 没写就走上面第 4 条问用户。
 
    > 📌 **为什么这条值得写这么长** (2026-08-25 活体案例): 有一棒的执笔者按「(通常你知道)」去 `list_sessions`
    > 里找自己, 没找到, 于是从列表里挑了个**长得像**的版本号、推断「用户记混了」, 据此**把 session 改成了错名**。
@@ -449,8 +466,9 @@ Grep own doc for:
 - "已 verified" / "已 test" → MUST cite command + timestamp; else "声称 verified, 未独立验证"
 - "我们之前讨论的 X" → replace with verbatim user quote + timestamp
 - **Doc-template lint**: handoff doc 必须含全 6 个 required section header (🎯/🔴/📋/⚠/🚨/📌)。grep 自己的 doc 缺任一 → 补齐再 output
-- **`Session:` 行 lint (条件必填)**: **Step 4b 命中了命名规则文件** → doc 顶部必须有 `> Session: <本棒> → 下一棒 <下一任>` 行; 缺 → 补齐再 output。**Step 4b 没命中 → 本条整条跳过**(没有规则的项目本来就不该有这行)。
-  > 🔑 这条 lint 就是那个字段的**必经之路** —— 没有它, 「顶部加一行」又是一个"靠执笔者记得"的仪式, 而提醒必腐。
+- **`Session:` 行 lint (条件必填)**: **Step 4b 有输出** → doc 顶部必须有 `> Session:` 行; 缺 → 补齐再 output。
+  ⚠ **只查这行在不在, 不校验内容** —— 内容由规则文件定, 不由本 skill 定。**Step 4b 没命中 → 整条跳过。**
+  > 🔑 这条 lint 是那个字段的**必经之路** —— 没有它, 「顶部加一行」又是一个"靠执笔者记得"的仪式, 而提醒必腐。
 - **报喜 scope lint**: doc/输出里出现"闭环 (完成)/全线完成/整条线 (跑通)"类断言 → 必须紧跟「当前档位 + 有意没做的」清单; 局部完成 (一个 Plan/一段管道) **禁止**写成整线闭环 (提示性检查, 描述目标的"闭环"不算)
 - **⭐ 诉求对账 lint (防丢球)**: §🔴 里**每条**信号必须有 `→ 落点:` 行 — 缺任一 → 补齐再 output。另查两种伪通过:
   - 【拍板 / Reframe / Instinct / Mid-session 补充】四类里凡标 `是约束不是活` → **判为漏项**, 回去给它找真落点 (§📋 或 §⚠)
