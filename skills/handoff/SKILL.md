@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-25 -->
+<!-- handoff-skill-rev: 2026-08-25b -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -21,14 +21,44 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 You are about to close a long Claude Code session. The user is context-fatigued and trusts you to leave clean breadcrumbs for the next CC. Walk through these 7 steps **in order**. **不准跳 Step 0 + Step 7**.
 
+## ⚡ 全流程通用: 旁白与动作放【同一轮】
+
+**别先发一条纯文字说「现在开始 Step N」、结束本轮, 下一轮才调工具。** 说明照写, 但要和工具调用**放在同一条消息里**。
+
+📊 **实测代价 (2026-08-25, 256 次真实 handoff 的成本分解, 由 Harness 线提供)**: 昂贵档每次 handoff 发 **22.1 条**零工具调用的纯文字轮(中位 104 字, 83% 不到 300 字), 便宜档只有 **4.7 条**。
+**22 条 × 进入时 67 万上下文 ≈ 14.7M, 占昂贵档总成本 55.6M 的 26%** —— 写约 2,300 字, 花掉四分之一的钱。
+因为每一条纯旁白轮, 都要**把当时的全部上下文重读一遍**才能说出那 104 个字。
+
+⚠ **这不是让你少说话。用户要能跟上进展 —— 文字量不变, 只是别让它单独占一轮。**
+
+✅ **两种纯文字轮是合理的, 别为了合并而消灭它们**:
+1. **要问用户**(等回答, 本来就没工具可调)
+2. **活干完了汇报结果**
+
+⇒ 合理下限**不是 0**。实测便宜档也有 4.7 条 —— **从 22 压到 5 是目标, 压到 0 是错的。**
+
+> 🔑 **为什么这条要明写, 而不是靠"注意简洁"**: 本 skill 的步骤是**编号的**(Step 0/1/2/…), 编号结构天然诱导「一个编号 = 一个轮次」。**同款病在 Step 0 已经出现过一次**(编号的命令列表 → 执笔者一轮跑一条, 见下方批量模板)。
+> grep 过全文: 4 处「要出声 / 说一句 / 告知一行」**全是特定条件触发**(skill 更新了 / 自动切了分支 / 没检测到任务板), 唯一沾边的 `Walk through these 7 steps in order` 说的是**顺序不是汇报**。
+> ⇒ **skill 从没要求每步旁白, 但也从没说过可以合并** —— 于是默认路径就是一步一轮。
+>
+> 📌 **可行性有活体样本**: 加这条的那次 dogfood handoff **全程零条纯旁白轮**, 流程完整、用户全程跟得上。
+> ⚠ 但那次执笔者正在做 dogfood(本来就在赶)且刚处理过这个话题(有意识) —— **不知情的执笔者默认还是会往旁白那边走**, 所以这条必须明写在这里。
+>
+> ⚠ **诚实标注: 收益是估算, 未实测**。上面那个 26% 来自历史成本分解; **"合并之后实际省多少"没有任何人验证过**。若日后实测收益远低于此, 以实测为准, 回来改掉这段的数字 —— 别让一个估算数字在这里长期冒充实测结论。
+
 ## Step 0: Live-verify (BLOCKING)
 
-Before reading any memory / handoff doc / CLAUDE.md, run all 3:
+Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 
 1. `git log origin/main --oneline -10` → cite output verbatim in § 6
-2. `git status --short` → cite output
-3. Project's "⚡ Live Verify" section in CLAUDE.md / AGENTS.md → run any listed commands (e.g. `ssh prod docker ps`, `curl /healthz`, 项目自定的状态查询), cite output
+2. ⭐ `git rev-list --count HEAD..origin/main` → **你手上这份落后主干多少**。**不是 0 就先 `git merge --ff-only origin/main`(或 rebase)再动手** — 见下方 ⚠
+3. `git status --short` → cite output
+4. Project's "⚡ Live Verify" section in CLAUDE.md / AGENTS.md → run any listed commands (e.g. `ssh prod docker ps`, `curl /healthz`, 项目自定的状态查询), cite output
    - No such section → project hasn't configured one, skip
+
+> ⚠ **第 2 条 2026-08-25 补上 —— 此前只查 `origin/main`, 不查自己**: 「远端到哪了」和「我手上这份到哪了」是**两件事**。只看前者会得到"一切正常"的假象, 而你正踩在几十个 commit 之前的旧代码上改东西。
+> 📌 实测: 本条加上的**当次** dogfood 就发现执笔者落后 **6 个 commit**(是它自己额外加了一条才看见的); 另有一次记录在案的落后 **44 个 commit、白修一轮**。
+> ⚠ **不写「run all N」而写「run all of these」**: 条目会增删, 写死数字下次就对不上 —— 同 § 落点表那条纪律。
 
 **Do NOT trust memory self-report until Step 0 has ground-truth output.**
 
@@ -41,9 +71,10 @@ Before reading any memory / handoff doc / CLAUDE.md, run all 3:
 **合并不违反 `BLOCKING`** —— BLOCKING 约束的是**顺序**(先拿 ground truth 再读 memory, 防 memory drift), **不是粒度**。本 skill 从来没有规定过执行粒度。
 
 ```bash
-echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10 || echo "❌ [1] 失败(exit $?)"
-echo "=== [2] 工作区 ==="          ; git status --short                || echo "❌ [2] 失败(exit $?)"
-echo "=== [3] <项目那条> ==="      ; <项目 CLAUDE.md ⚡Live Verify 里那条> || echo "❌ [3] 失败(exit $?)"
+echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10        || echo "❌ [1] 失败(exit $?)"
+echo "=== [2] 我这份落后多少 ==="  ; git rev-list --count HEAD..origin/main   || echo "❌ [2] 失败(exit $?)"
+echo "=== [3] 工作区 ==="          ; git status --short                       || echo "❌ [3] 失败(exit $?)"
+echo "=== [4] <项目那条> ==="      ; <项目 CLAUDE.md ⚡Live Verify 里那条>      || echo "❌ [4] 失败(exit $?)"
 ```
 
 🚨 **三条要点缺一不可 —— 第 2 条是前提, 不是附加项**:
@@ -310,6 +341,17 @@ Fill 4 variables:
 
 **为什么由接班方删、而不是自己删**: 你现在**正站在这个 worktree 里**, 删不掉脚下的地 —— 这是物理限制不是偏好。而交接完成后你已停摆、没人站在里面, 接班方在新 worktree 里, 永远不会误删自己。**所以: 你负责判断, 它负责执行。**
 
+> ⏰ **执行时点: 这三条必须在 Step 7 push 完成【之后】跑** (2026-08-25 实测缺陷, 别照编号顺序在这里跑):
+> 三条里有两条(**工作区干净** / **有上游**)**只有 Step 7 push 之后才可能为真** —— handoff doc 此刻刚写完还没 commit, 新分支也还没 push 过。
+> 在这里跑 ⇒ **对任何新建分支都必然判「不能回收」** ⇒ 接班 prompt 里不写回收指令 ⇒ **worktree 一个个攒下来, 而且没人知道为什么。**
+>
+> 📌 **同一天同一条分支实测**:
+> ```
+> Step 4 位置跑:  工作区=2 个改动 / `fatal: no upstream configured`  → 判「不能回收」
+> Step 7 push 后: 工作区=0 / 未推送=0 / 上游=origin/claude/…        → 三条全过, 判「可回收」
+> ```
+> **实操**: 本步在 Step 4 只做①判断是否在独立 worktree(不是 → 整段跳过)②看 `git status` 里有没有**Step 7 不会带走的**改动(与本次 handoff 无关的散落修改 —— 那才是真的不能删)。**三条判据本身留到 Step 7 push 之后跑**, 结果回填进接班 prompt(Step 6 若已输出, 就在 Step 7 之后补一行更正)。
+
 **判据 = 推没推, 不是合没合** (三条全过才算安全):
 
 ```bash
@@ -411,6 +453,9 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 - 本 session 有 unrelated uncommitted work → 必 separate commit (hygiene 单独, 不 mix)
 - Multi-worktree env → `gh pr merge` 撞冲突时用 API workaround (见下方 anti-pattern 清单 "multi-worktree gh pr merge" 那条)
 - **环境开不了 PR** (Codex 沙箱无 gh CLI / 无 GitHub 写权限) → commit + push 照做, 然后**必须显式输出**: "⚠ 本环境无法开 PR — handoff 已推到分支 `<branch>` 但**未进 main, 下个 session 看不到它**; 请在 GitHub / Codex UI 从该分支开 PR 并 merge", 并列进 Step 6 § Uncertainty。**做不了可以, 静默不行** (真实案例: 某 push-only 环境的成员 push 后 self-lint 报 0 warnings, 用户对比才发现没 PR — 交接差点断链)
+
+> ⏰ **push 完成后回来做一件事**: 跑 Step 4c 那三条 worktree 回收判据(**它们到这里才可能为真**), 把结果填进接班 prompt。
+> Step 6 若已经输出过, 就补一行:「♻️ 补充: 前任 worktree `<绝对路径>` 三条判据已过, 可回收」。**别让这一步随 Step 6 输出完就丢了** —— 它是 worktree 不再堆积的唯一出口。
 
 ⚠ **不准 edit 后 leave uncommitted** — fresh-worktree next session 看不见 → 改动等于丢 (见下方 anti-pattern 清单 "leave uncommitted" 那条).
 
