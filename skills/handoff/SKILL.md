@@ -1395,6 +1395,11 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 > ```bash
 > git show origin/main:<你刚推的那个路径>   # 读到 = 真到了; 读不到 = 没到, 别管前面打印了什么
 > ```
+> ⚠ **反方向同样要回读: 回执报【失败】时, 东西也可能已经推上去了。**
+> 📌 实测: 一次推送打印 `remote rejected … reference already exists` + 退出码 1,
+> **而远端分支就停在刚才那个 commit 上 —— 推送本身成功了, 失败的是随后建 upstream 跟踪的那一步。**
+> ⛔ 危险动作是看到非零退出码就**重推 / 强推 / 换个名字再建一条分支** —— 那会在已经正确的状态上再动手。
+> 🔑 **所以这条不是"别信成功", 是"别信回执"** —— **成功和失败的回执都不算数, 回读才算。**
 > ⚠ **non-fast-forward 是常态不是意外**: 交接文档要写十几分钟, 而 main 一直在动。
 >
 > 📌 **实测事故 (2026-08-28, 报回者当场被咬两次)**: 它写的是
