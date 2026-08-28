@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-25i -->
+<!-- handoff-skill-rev: 2026-08-28 -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -95,14 +95,26 @@ Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 **合并不违反 `BLOCKING`** —— BLOCKING 约束的是**顺序**(先拿 ground truth 再读 memory, 防 memory drift), **不是粒度**。本 skill 从来没有规定过执行粒度。
 
 ```bash
-echo "=== [0] 本次执行的 skill rev ==="; echo "<照抄你上面读到的那行, 别 grep 磁盘 — 见下方 ⚠>"
+echo "=== [0a] 今天是哪天 ==="   ; date "+%Y-%m-%d"                                     || echo "❌ [0a] 失败(exit $?)"
+echo "=== [0b] 本次执行的 skill rev ==="; echo "<照抄你上面读到的那行, 别 grep 磁盘 — 见下方 ⚠>"
 echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10        || echo "❌ [1] 失败(exit $?)"
 echo "=== [2] 我这份落后多少 ==="  ; git rev-list --count HEAD..origin/main   || echo "❌ [2] 失败(exit $?)"
 echo "=== [3] 工作区 ==="          ; git status --short                       || echo "❌ [3] 失败(exit $?)"
 echo "=== [4] <项目那条> ==="      ; <项目 CLAUDE.md ⚡Live Verify 里那条>      || echo "❌ [4] 失败(exit $?)"
 ```
 
-⚠ **第 [0] 条为什么必须手填、不能 `grep` 磁盘**: 你要报的是「**本次执行**用的哪一版」, 而那份是
+🚨 **第 [0a] 条不是凑数 —— 「今天几号」是你唯一不能靠记忆回答的东西**:
+session 可以**跨天甚至跨周**(挂起、恢复、接着干), 而你脑子里的"今天"停在**它开始的那一天**。
+⇒ 于是 rev 锚点、交接文档文件名、commit message、文档里的「X 月 X 日实测」**会集体打错**,
+而且**全都错成同一个日期, 看起来毫无破绽**。
+
+📌 **实测 (2026-08-28)**: 有一棒在 08-25 干了大半天、被挂起、**08-28 恢复后接着干**,
+给新改动打的 rev 是 `2026-08-25i` —— 晚了整整三天。**唯一撞破它的是保鲜闸门**(它拿系统日期比对),
+而闸门默认在 **Step 7** 才跑, 那时文档已写完、rev 已打错、PR 已合并。
+⇒ 把 `date` 提到 Step 0, 「今天」就有了一个**每次都会被看见**的来源。
+⚠ 顺带: 跨天恢复时 `origin/main` 通常也已经走远(那次落后十几个 commit), 第 [2] 条同样会救你。
+
+⚠ **第 [0b] 条为什么必须手填、不能 `grep` 磁盘**: 你要报的是「**本次执行**用的哪一版」, 而那份是
 session 启动时加载进你上下文的快照 —— `grep ~/.agents/skills/handoff/SKILL.md` 读到的是**磁盘**上那份,
 跑过 Step 0.5 之后它会**领先于你正在执行的版本**(见本文顶部「三个版本可以互不相同」)。
 **这个信息只存在于你的上下文里, 没有任何命令能替你查出来**, 所以只能照抄。
