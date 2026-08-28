@@ -97,14 +97,46 @@ fi
 
 REL="${SOT#$ROOT/}"
 
-# ── 判「今天动过没」的两种口径 ──
+# ── 判「本次动过没」的三层口径 (强 → 弱) ──
 # yaml: 沿用原有 last_updated 字段(零回归)
-# md/dir: **不要求人填字段** —— 用 git 算(本 session 改过 = 工作区有改动, 或今天已提交)
-#         理由: 要人填的字段必然会空(实测某仓 166 张有现状块的卡里 146 张"更新时间"是空的)
+# md/dir: **不要求人填字段** —— 用 git 算。理由: 要人填的字段必然会空
+#         (实测某仓 166 张有现状块的卡里 146 张"更新时间"是空的)
+#
+# ⚠ 2026-08-28 修 (总控线实测报回): 原版只有两层, 第二层是「该文件今天有 commit」——
+#    而那**不等于本 session 改的**。实撞: 某仓的 context/worklines/*.md 由 CI 定时任务
+#    自动刷新, 实查该文件**当天被 bot 提交 16 次**(另有 1 次是人) ⇒ 这道闸对它
+#    **每天、几乎任何时刻都是绿的, 与执笔者做没做完全无关**。
+#    ⭐ 正是本 skill 通篇在治的那个形状: **检查在"坏"的时候, 给出和"好"的时候一样的输出。**
+#
+# ⛔ 刻意**不用** --author 过滤 bot: bot 名各仓不同(github-actions[bot] / dependabot /
+#    自建账号…), 写死任何一个都是把某个仓的形态焊进公开脚本。改用「是不是**本分支**改的」——
+#    那是与仓无关的结构性判据。
+TOUCH_WHY=""          # 命中的是哪一层, 供输出区分强弱
+BASE_REF=""           # 主干引用, 探测失败则第二层自动跳过
+_b=$(git -C "$ROOT" symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null)
+if [[ -n "$_b" ]]; then BASE_REF="$_b"
+else
+  for _c in origin/main origin/master main master; do
+    git -C "$ROOT" rev-parse --verify -q "$_c" >/dev/null 2>&1 && { BASE_REF="$_c"; break; }
+  done
+fi
+
 touched_today() {  # $1 = 路径
-  [[ -n "$(git -C "$ROOT" status --porcelain -- "$1" 2>/dev/null)" ]] && return 0
+  # ① 最强: 工作区有未提交改动 = 本 session 此刻正在改它
+  if [[ -n "$(git -C "$ROOT" status --porcelain -- "$1" 2>/dev/null)" ]]; then
+    TOUCH_WHY="工作区有未提交改动"; return 0
+  fi
+  # ② 强: 本分支相对主干改过它 = 本 session 已经 commit 了
+  if [[ -n "$BASE_REF" ]] && \
+     [[ -n "$(git -C "$ROOT" diff --name-only "$BASE_REF"...HEAD -- "$1" 2>/dev/null)" ]]; then
+    TOUCH_WHY="本分支相对 $BASE_REF 改过它"; return 0
+  fi
+  # ③ ⚠ 弱: 该文件今天有 commit —— 可能是 bot 定时刷新, 也可能是别的 session
   local d; d=$(git -C "$ROOT" log -1 --format=%cd --date=format:%Y-%m-%d -- "$1" 2>/dev/null)
-  [[ "$d" == "$TODAY" ]]
+  if [[ "$d" == "$TODAY" ]]; then
+    TOUCH_WHY="WEAK"; return 0
+  fi
+  return 1
 }
 
 if [[ "$KIND" != "yaml" ]]; then
@@ -114,7 +146,19 @@ if [[ "$KIND" != "yaml" ]]; then
     [[ -n "$m" ]] && TARGET="$m"
   fi
   if touched_today "$TARGET"; then
-    echo "✅ handoff-freshness: ${TARGET#$ROOT/} 本次已更新 (git 判定, 非人工声明)"
+    if [[ "$TOUCH_WHY" == "WEAK" ]]; then
+      # ⚠ 只有最弱那层命中 —— 不阻塞, 但绝不印成干净的 ✅
+      cat <<MSG
+⚠️ handoff-freshness: ${TARGET#$ROOT/} 今天有 commit, 但**查不出是不是本 session 改的**
+   工作区没有它的改动, 本分支相对主干也没有 —— 只剩"今天有人动过它"这一条弱证据, 而那可能是:
+     · 自动化任务的定时刷新(实测某仓该文件一天被 bot 提交 16 次 ⇒ 这条对它永远成立)
+     · 另一条 session 改的
+   → **请自己确认 Step 3b 真的刷新了它**; 拿不准就改一下再跑本闸(改完会走到强判定)。
+   (不阻塞: 这种情况也可能是你今天早些时候已提交并合入主干了)
+MSG
+      exit 0
+    fi
+    echo "✅ handoff-freshness: ${TARGET#$ROOT/} 本次已更新 ($TOUCH_WHY)"
     exit 0
   fi
   echo "❌ handoff-freshness: ${TARGET#$ROOT/} 今天没被动过" >&2
