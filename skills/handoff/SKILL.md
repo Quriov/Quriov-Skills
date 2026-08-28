@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-28f -->
+<!-- handoff-skill-rev: 2026-08-28g -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
@@ -25,7 +25,8 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 > **Full protocol with rationale + 15 anti-patterns + 案例 background**: [`references/handoff-protocol.md`](./references/handoff-protocol.md). Read on demand for edge-case detail / Step 3 sub-check tuning / anti-pattern incident background. This skill lists executable procedure only.
 
-You are about to close a long Claude Code session. The user is context-fatigued and trusts you to leave clean breadcrumbs for the next CC. Walk through these 7 steps **in order**. **不准跳 Step 0 + Step 7**.
+You are about to close a long Claude Code session. The user is context-fatigued and trusts you to leave clean breadcrumbs for the next CC. Walk through these 7 steps **in order**. **七步都要跑完** —— Step 0 与 Step 7 额外标了 BLOCKING(它们各自会挡住后面的事), 但**那不代表其余几步可选**。
+🚨 **2026-08-28 实测**: 原文只写「不准跳 Step 0 + Step 7」, 有一棒据此**跑了 0/1/2c/5 就停手**, 漏掉 Step 3、**Step 4(接班 init prompt)**、Step 6 —— 而它**主观上完全以为跑完了**。收尾自查见 Step 5 的「步骤完成度 lint」。
 
 ## ⚡ 全流程通用: 文字与工具调用放【同一次请求】
 
@@ -766,6 +767,33 @@ Grep own doc for:
   必须在 doc 里留下痕迹(§📋 交付 / §🚨 警告 / §🤝 清单 任一)。
   🔑 判据: **交接开始之后你动过的每一样东西, 下一棒都要看得见** —— 看不见的那些就是这条要抓的。
 - **接班 prompt lint**: Step 4 生成的 prompt 缺「内化复述」段 → 补; 有协作方清单却缺「开局回访」段 → 补
+- ⭐ **步骤完成度 lint (防「跑了一半就以为跑完」—— 2026-08-28 实测事故)**:
+  **逐条核对【产物在不在】, 不是回忆"我做了吗"** —— 自述会骗人, 产物不会。
+
+  | 步骤 | 它应该留下的产物 |
+  |---|---|
+  | 0 / 0.5 / 0.6 | §📌 里有 Step 0 的 verbatim 输出;(有协作方时)通知已发出 |
+  | 1 + 2c | handoff doc 文件存在, §🔴 每条信号都有 `→ 落点:` |
+  | 2a | doc 里写明了 track id |
+  | 2b | 你说得出「本分支是否已被合并」这个结论(不是"没查") |
+  | 3 | memory 提案表 —— **哪怕结论是"无需改动"也要有这张表** |
+  | **4** | ⭐ **接班 init prompt 已经产出** |
+  | 4b/4c/4d | (条件触发)下一任标题 · worktree 回收结论 · 协作方通知 |
+  | 5 | 本清单本身 |
+  | 6 | 五个区块齐(📄 doc / 📋 prompt / 📊 lint / 🛠 提案 / ❓ 不确定) |
+  | 7 | commit + PR 号(或"无法开 PR"的显式声明) |
+
+  🚨 **缺任一 ⇒ 不是"可以省", 是【还没跑完】。** 尤其 **Step 4**:
+  **交接文档没人会主动去读, init prompt 才是下一棒真正会收到的入口** ——
+  漏掉它 = 你产出了一份很完整的文档, 而**下一棒一无所有**。
+
+  > 🔑 **为什么这条非加不可**(报回者原话, 原样留着):
+  > 「我甚至**跑了 Step 5(自查), 但 Step 5 检查的是文档内容, 不检查「步骤有没有跑完」** ——
+  > 我在一个『已经做了自查、而自查通过了』的状态下停手, **主观上完全像跑完了**。」
+  > ⇒ 一般式(本 skill 反复在治的那条): **这个检查在「没跑完」的时候, 会不会给出和「跑完了」一样的输出?**
+  > 加这条之前, Step 5 的答案是**会**。
+  > ⚠ 报回者还补了一句事实: **「我是被用户问出来的, 不是被 skill 问出来的。」**
+
 - **push-only lint**: Step 7 没开成 PR (无 gh / Codex 环境) → 输出**必须**含 "⚠ 无法开 PR + 分支名 + 请人工开 PR merge, 否则下个 session 看不到 handoff"; 静默降级时**不许报 0 warnings**
 
 ## Step 6: Output strict format
