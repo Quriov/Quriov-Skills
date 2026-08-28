@@ -6,14 +6,20 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-28e -->
+<!-- handoff-skill-rev: 2026-08-28f -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > ⚠ **三个版本可以互不相同, `grep` 只答得了其中一个** —— 别拿它当「我现在跑的是不是最新版」的答案:
 >
 > - **你此刻正在执行的** = **你正在读的这一份**。通常它来自 session 启动时的快照; 但**如果本 skill 是 session 中途被调起的**(用 Skill 工具 / 斜杠命令), 那一刻加载的是**磁盘上的当前版本**, 可能已经领先于启动快照。⇒ **[0b] 填「你此刻正在读的这份的 rev」, 不是"启动时那份"** (2026-08-28 实测: 有一棒启动快照是 `…25h`、中途调起时磁盘已是 `…28b`, 照"启动快照"填就填错了)。Step 0.5 更新的是磁盘, **不改变你本次正在执行的这一份**(刻意如此, 别中途切协议)。
 > - **磁盘上装的** = `grep handoff-skill-rev ~/.agents/skills/handoff/SKILL.md`(Claude Code 的 `~/.claude/skills/handoff/` 是软链, 同一份)。跑过 `npx skills update -g` 之后, 它会**领先于**你正在执行的那份。
-> - **源仓最新的** —— 判据就是 Step 0.5 那条命令的输出本身: 打印了 `Updated handoff` = 磁盘刚才是落后的; 没有它 = 磁盘已经等于源仓。不用另跑命令。
+> - **源仓最新的** —— 判据就是 Step 0.5 那条命令的输出本身, **两种输出各对应一个结论**:
+>   · 出现 `✓ Updated handoff` ⇒ **磁盘刚才是落后的**, 现在被拉平了
+>   · 出现 `✓ All global skills are up to date`(或同义的"已是最新") ⇒ **磁盘本来就等于源仓**
+>   不用另跑命令。
+>   ⚠ 2026-08-28 补: 原文只写了前一种、让读者自己推「没有它就是后一种」—— 实测有人**照做对了,
+>   但靠的是"没看见 X"而不是"看见了 Y"**, 而它实际看到的那个字符串在本 skill 里一次都没出现过。
+>   **否定式判据经不起措辞变化**(工具换个说法就失效), 所以两种都写出来。
 >
 > 🚨 **「磁盘落后于源仓」真会发生, 而且没有任何提示**(2026-08-21 实测): 上一棒把改动推上了公开仓、源仓 rev 已是 `2026-08-21`, 但**本机从没拉回来**, 磁盘停在 `2026-08-20` —— 那一棒因此全程跑的是**旧版保鲜脚本**(旧版把「项目显式声明」放在最后的 else 分支, 对 state 搬去非常见路径的仓会给假红)。**推 PR ≠ 本机拿到了**, 这两件事之间隔着一次 `npx skills update -g`。
 
@@ -73,7 +79,7 @@ You are about to close a long Claude Code session. The user is context-fatigued 
 Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 
 1. `git log origin/main --oneline -10` → cite output verbatim in § 6
-2. ⭐ `git rev-list --count HEAD..origin/main` → **你手上这份落后主干多少**。**不是 0 就先 `git merge --ff-only origin/main`(或 rebase)再动手** — 见下方 ⚠
+2. ⭐ `git rev-list --count HEAD..origin/main` → **你手上这份落后主干多少**。不是 0 就**先拉平再动手** — 怎么拉平见下方 🚨
 3. `git status --short` → cite output
 4. Project's "⚡ Live Verify" section in CLAUDE.md / AGENTS.md → run any listed commands (e.g. `ssh prod docker ps`, `curl /healthz`, 项目自定的状态查询), cite output
    - No such section → project hasn't configured one, skip
@@ -81,6 +87,19 @@ Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 > ⚠ **第 2 条 2026-08-25 补上 —— 此前只查 `origin/main`, 不查自己**: 「远端到哪了」和「我手上这份到哪了」是**两件事**。只看前者会得到"一切正常"的假象, 而你正踩在几十个 commit 之前的旧代码上改东西。
 > 📌 实测: 本条加上的**当次** dogfood 就发现执笔者落后 **6 个 commit**(是它自己额外加了一条才看见的); 另有一次记录在案的落后 **44 个 commit、白修一轮**。
 > ⚠ **不写「run all N」而写「run all of these」**: 条目会增删, 写死数字下次就对不上 —— 同 § 落点表那条纪律。
+
+🚨 **「落后了怎么拉平」分两种情况, 别一律 `--ff-only`** (2026-08-28 实测):
+
+| 你的分支 | 怎么拉平 |
+|---|---|
+| **还没被合并过**(正常在途) | `git merge --ff-only origin/main` —— 能成 |
+| **已经被合并过, 而且仓库用 squash 合并** | ⛔ **`--ff-only` 必然失败**, 换 `git checkout -B <新分支> origin/main` |
+
+⚠ **第二种是结构性的, 不是偶发**: squash 会把你那串 commit 压成主干上的**一个新 commit**,
+你的分支与主干**必然分叉** ⇒ `fatal: Not possible to fast-forward, aborting.` **永远如此**。
+📌 实测: 一棒落后 4 个 commit, 照「`--ff-only`(或 rebase)」做 → 直接报错;
+**"(或 rebase)"是唯一出路, 却被写成了附带选项** —— 不知情的人会先撞一次错再自己想办法。
+⇒ 拿不准自己属于哪种 → **Step 2b 就是查这个的**(它跑 `gh pr list --head <branch> --state merged`)。
 
 **Do NOT trust memory self-report until Step 0 has ground-truth output.**
 
@@ -96,7 +115,7 @@ Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 
 ```bash
 echo "=== [0a] 今天是哪天 ==="   ; date "+%Y-%m-%d"                                     || echo "❌ [0a] 失败(exit $?)"
-echo "=== [0b] 本次执行的 skill rev ==="; echo "<照抄你【此刻正在读的这一份】顶部那行, 别 grep 磁盘 — 见下方 ⚠>"
+echo "=== [0b] 本次执行的 skill rev ==="; echo "<照抄你【此刻正在读的这一份】顶部那行 — 别拿 grep 磁盘的结果来填这格, 见下方 ⚠>"
 echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10        || echo "❌ [1] 失败(exit $?)"
 echo "=== [2] 我这份落后多少 ==="  ; git rev-list --count HEAD..origin/main   || echo "❌ [2] 失败(exit $?)"
 echo "=== [3] 工作区 ==="          ; git status --short                       || echo "❌ [3] 失败(exit $?)"
@@ -114,7 +133,13 @@ session 可以**跨天甚至跨周**(挂起、恢复、接着干), 而你脑子�
 ⇒ 把 `date` 提到 Step 0, 「今天」就有了一个**每次都会被看见**的来源。
 ⚠ 顺带: 跨天恢复时 `origin/main` 通常也已经走远(那次落后十几个 commit), 第 [2] 条同样会救你。
 
-⚠ **第 [0b] 条为什么必须手填、不能 `grep` 磁盘**: 你要报的是「**本次执行**用的哪一版」, 而那份是
+⚠ **第 [0b] 条禁的是「拿 `grep` 磁盘的结果来填这一格」, 不是禁止 `grep` 磁盘本身** ——
+`grep` 磁盘是合法且常用的动作(Step 0.5 判断要不要更新就靠它), 它只是**回答另一个问题**。
+📌 **实测冲突 (2026-08-28)**: 有人一边收到「先 `grep` 确认磁盘版本」的指引、一边读到本条写的
+「别 `grep` 磁盘」, **两条读起来直接打架**; 那次侥幸没出错, 只因为磁盘与它加载的**恰好同版** ——
+**不同版的话, 它就会把磁盘那一版报成「本次执行的版本」。**
+
+**为什么这一格只能手填**: 你要报的是「**本次执行**用的哪一版」, 而那份是
 session 启动时加载进你上下文的快照 —— `grep ~/.agents/skills/handoff/SKILL.md` 读到的是**磁盘**上那份,
 跑过 Step 0.5 之后它会**领先于你正在执行的版本**(见本文顶部「三个版本可以互不相同」)。
 **这个信息只存在于你的上下文里, 没有任何命令能替你查出来**, 所以只能照抄。
@@ -173,7 +198,7 @@ npx skills update -g
 
 ### Step 0.6: 宣告进入交接状态 (有协作方才做; 没有则整段跳过, 零变化)
 
-**Step 0 一跑完就做, 别拖到收尾** —— handoff 本身要跑很久(实测可达几十轮), 而协作方
+**本次 handoff 的 Step 0 一跑完就做, 别拖到收尾** —— handoff 本身要跑很久(实测可达几十轮), 而协作方
 **无从知道你什么时候开始收尾**。
 
 🚨 **这一步治的是一个会真的丢信息的故障** (2026-08-25 实测, 就发生在写这条的那一棒身上):
@@ -182,7 +207,17 @@ npx skills update -g
 下一棒读到的是"skill 现状 X", 而真实已经是 X+4, 中间四版的判断过程它完全看不到。
 ⇒ **问题不是文档少写了一行, 是「交接状态下还在接活」。**
 
+⚠ **「一跑完」指的是【本次 handoff 开头那一次】, 不是 session 开头那一次** (2026-08-28 实测提出):
+真实常态是「**干了一整天, 现在才开始 handoff**」—— 那么 session 开头跑的 Step 0 早已过期
+(实测有 session 跨了 3 天), **handoff 开始时本来就该重跑 Step 0**。本节挂在**那一次**之后。
+⇒ 换句话说: **把 handoff 当成独立的一轮来跑**, 而不是接着白天的上下文顺下来。
+
 #### 谁算「还在往来的协作方」—— 判据 = 球在谁手上
+
+> ⚠ **先划清范围: 「协作方」不包括用户。** 用户的直接指令**永远照做, 不受本节任何限制**
+> (完整分流表在下面「从这一刻起…」那节)。**本节讲的全是别的 session / 别的人发来的东西。**
+> 📌 2026-08-28 实测: 有人读到这里**卡在"用户算不算"上**, 往下翻了两屏才确定不算 ——
+> 范围要在判据**之前**给, 不是之后。
 
 任一成立即是:
 1. **我欠它** —— 它问了我还没答, 或我答应给它东西还没给
@@ -712,6 +747,9 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 
 Grep own doc for:
 - ✅ / "shipped" / "完成" / "ship" / "ready" → MUST have file:line citation OR commit hash; else change to 🟡 designed / pending
+  ⚠ **例外(2026-08-28 实测误报 2 处)**: 你在**引述或讨论**这些符号本身时不算声称完成 ——
+  典型是复盘一个「打了 ✅ 但其实没做成」的 bug, **讲这个 bug 的文字自己会命中这条闸**。
+  判据: **这个 ✅ 是"我完成了 X", 还是"某处出现过一个 ✅"?** 后者放行。本条是提示性检查, 不阻塞。
 - "已 verified" / "已 test" → MUST cite command + timestamp; else "声称 verified, 未独立验证"
 - "我们之前讨论的 X" → replace with verbatim user quote + timestamp
 - **Doc-template lint**: handoff doc 必须含全 6 个 required section header (🎯/🔴/📋/⚠/🚨/📌)。grep 自己的 doc 缺任一 → 补齐再 output
