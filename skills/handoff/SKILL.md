@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-29e -->
+<!-- handoff-skill-rev: 2026-08-29f -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -1496,28 +1496,16 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 > ⛔ **别用 stash 来"临时挪开另一半"**: 在不少环境里 stash 栈是**跨工作区共享**的
 > (多个工作区 / 多条 session 并行时, 你 pop 到的可能是别人的), 属于要额外小心的操作 ——
 > **而这里根本不需要它**: 分两次 `add` 就够了。
-> 📌 实测: 一棒因为本节没写"怎么拆", 自己选了 `git stash push -- <单个文件>` ——
-> **它照本机规矩小心地做对了, 但那是本节把一个需要小心的动作留成了空白。**
 >
 > 🚨🚨 **走直推的, 推完【必须回读】—— push 的回执不算数。**
 > ```bash
 > git show origin/main:<你刚推的那个路径>   # 读到 = 真到了; 读不到 = 没到, 别管前面打印了什么
 > ```
 > ⚠ **反方向同样要回读: 回执报【失败】时, 东西也可能已经推上去了。**
-> 📌 实测: 一次推送打印 `remote rejected … reference already exists` + 退出码 1,
-> **而远端分支就停在刚才那个 commit 上 —— 推送本身成功了, 失败的是随后建 upstream 跟踪的那一步。**
 > ⛔ 危险动作是看到非零退出码就**重推 / 强推 / 换个名字再建一条分支** —— 那会在已经正确的状态上再动手。
 > 🔑 **所以这条不是"别信成功", 是"别信回执"** —— **成功和失败的回执都不算数, 回读才算。**
 > ⚠ **non-fast-forward 是常态不是意外**: 交接文档要写十几分钟, 而 main 一直在动。
 >
-> 📌 **实测事故 (2026-08-28, 报回者当场被咬两次)**: 它写的是
-> `git push -q origin HEAD:main 2>&1 | grep -v "^remote:" | tail -1 && echo "✅ 已直推 main"`
-> —— `&&` 挂在**管道**后面 ⇒ 拿到的是 `tail` 的退出码 ⇒ **push 明明失败却打印了 ✅**。
-> 第二次 rebase 之后 sha 全变、推的还是旧 sha, **又失败一次**。**两次失败都不会自己冒出来。**
-> ⭐ **救它的不是本 skill, 是它自己多跑的那一句回读** —— 而**下一个人不会多跑那一句**, 所以写进这里。
-> ⚠ 它自己的定性比事故本身值钱: 「本 skill **已有**那张退出码表、也写了『适用于全流程』,
-> **问题是它长在 Step 0 里** —— 我在 Step 7 写那行时完全没把它调出来。」
-> ⇒ **这就是为什么这条要长在直推路径旁边, 而不是靠上面那张表覆盖。**
 > 🔑 与下面 PR 路径那条 (`gh pr view` 确认真的合了) **是对称的一对**: 两条路径都必须回答
 > **「它真的到 main 了吗」**, 而不是「我发出去了吗」。
 >
@@ -1529,21 +1517,15 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 > 2. ⭐ **有副作用的那一步(push / 建 PR / 合并 / `reset --hard`)单独成一条命令** ——
 >    前面的验证跑完、**你看过了**, 再执行它。**别和验证串在同一条 `&&` 链里。**
 >
-> 📌 **六例, 四条线, 同一天**(每一例的救援都来自「**去读输出文字**」, 没有一例是靠退出码):
-> · `A && reset --hard && B && push` —— **B 参数写错退出而 push 照跑** ⇒ 改动被推没, PR 因 diff 变空被自动关闭
-> · 同一条命令里推送失败, 紧接的建 PR 步骤照跑 ⇒ **建出一个装着别的内容的 PR**
-> · `push … | … && echo ✅` ⇒ **push 失败却打印 ✅**(见上)
-> · `grep … | head -3` 取到 `head` 的退出码 ⇒ **「没找到」被读成「找到了」**
-> · `lint … | tail -30 ; echo "exit=$?"` ⇒ **打印 exit=0 而 lint 实际 FAIL**
->   (⚠ 这一例的执行者当时**正在验"这份产物合不合规"** —— **用一个会说谎的判据去验一个判据**)
-> · 后台测试命令包了 `| tail` ⇒ 退出码 0, **而里面有一条真的红**, 差点当成全绿
+> ⭐ **六例里最该记的一条**: 有人用 `lint … | tail -30 ; echo "exit=$?"` 去验"这份产物合不合规" ——
+> 打印 `exit=0` 而 lint 实际 FAIL。**他当时正在验一个判据, 而他用的判据本身会说谎。**
+> 📌 六例全清单(四条线、同一天)见 protocol § Step 7 的完整实测与出处。
 >
 > ⚠ **`--force-with-lease` 挡不住这一类**: 它防的是「**别人**在我之后改了东西」,
 > 而这里是「**我自己**推了个错的上去」。**别把它当成这两条判据的替代。**
 >
 > **没有这类规则** (多数仓) → 按下表照常打包成一个 PR。
 >
-> 📌 真实事故: 某仓协议**强制**同轮更新 `active-tracks.md`, 而它的 handoff 自动合并白名单只认 `context/handoffs/` → **每份合规交接 PR 都被判 block**, 全靠人手动合 (实测 #2080 / #2217)。根因就是本 skill 无条件打包、没有"这个文件本可直推"的概念。
 
 | Location | What | Action |
 |---|---|---|
@@ -1581,6 +1563,9 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 
 > ⏰ **push 完成后回来做一件事**: 跑 Step 4c 那三条 worktree 回收判据(**它们到这里才可能为真**), 把结果填进接班 prompt。
 > Step 6 若已经输出过, 就补一行:「♻️ 补充: 前任 worktree `<绝对路径>` 三条判据已过, 可回收」。**别让这一步随 Step 6 输出完就丢了** —— 它是 worktree 不再堆积的唯一出口。
+
+📚 **本节的完整实测与出处**(stash 那次 · remote-rejected 那次 · 被咬两次的完整叙述 · 六例全清单 · 自动合并白名单那次)
+→ `references/handoff-protocol.md § Step 7 的完整实测与出处`
 
 ⚠ **不准 edit 后 leave uncommitted** — fresh-worktree next session 看不见 → 改动等于丢 (见下方 anti-pattern 清单 "leave uncommitted" 那条).
 
