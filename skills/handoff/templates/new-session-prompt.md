@@ -6,6 +6,7 @@ variables:
   - "{{type}}": business-continuation / debug / system-upgrade / handoff-take-over / new-independent
   - "{{handoff_doc_path}}": 主交接文档路径
   - "{{warnings_top3}}": 本 turn 学到的 top 3 警告
+  - "{{worktree_reclaim}}": Step 4c 算出的前任 worktree 回收段 (无结论时整节删掉)
 ---
 
 # 接班 prompt — {{track}} 轨道 / {{type}}
@@ -77,6 +78,15 @@ Read {{handoff_doc_path}} 的 "⚠ What's still pending" section,
 如果起 Plan Mode, 走项目的 Plan Mode 模板 (如有, 含 § Audit Existing 决策表)。
 
 ---
+
+### 7. 前任 worktree (Step 4c 有结论时才写; 没有则整段跳过)
+
+{{worktree_reclaim}}
+
+> ⚠ **这一段是 Step 4c 的产物, 而它以前不在本模板里** —— 于是它能不能出现在启动包里,
+> 全看执笔者**记不记得手工加**(提醒, 必腐)。加这个槽位就是为了让它变成**依赖**。
+> ⛔ **Step 4c 判定"不可回收"时, 别把这一段留空** —— 按 Step 4c 写成如实说明
+> (例:`⚠ 前任 worktree <路径> 有未提交改动, 先别删`)。**空着和"没有前任 worktree"长得一样。**
 
 ## 沟通规则 (cross-cutting)
 
