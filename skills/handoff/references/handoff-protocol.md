@@ -645,7 +645,12 @@ SKILL.md 的 Step 2c 只留了动作(「那一列记线名, 地址现查」)。�
 
 同一台机器上的三个反例:
 - 设计系统 v2.4 的工作目录叫 `smart-glasses-control-v5-1101ff` —— 看着像总控 v5, 而总控 v5.5 在 `smart-glasses-control-v5-5-ae58b1`;
-- 上一棒的交接单把 `ezio-memory-framework-analysis-c0e87b` 记成 **iOS 线**的, 而它当时/现在都是**小艾记忆**的;
+- ⭐⭐ **同一个工作目录会在【不同的线】之间转手, 所以一份【当时正确】的记录也会变成误导**:
+  目录 `ezio-memory-framework-analysis-…` 的分支历史(`git reflog` 实证)是
+  `ezio-memory-framework-analysis-…` → **`smart-glasses-ios-v4-2-…`**(iOS 线)→ **`xiaoai-memory-v2-2-…`**(记忆线)。
+  ⚠ **本节初版把它写成「上一棒记错了」—— 那是错的, 已订正**: 上一棒写下它时它**确实**是 iOS 线的。
+  🔑 **所以问题不是"有人记错了", 而是「记对了也会过期」, 而且过期的方向是【看起来仍然合理】** ——
+  你看到 `ezio-memory` 会以为那是记忆线, 而它当时是 iOS 线。**这比"名字不携带身份"更能挡住人的直觉。**
 - 总控 v5.4 的地址前缀是 `ios-v37-handoff-0a5b55`。
 
 🔑 **目录名是"某一棒建目录时的快照", 而线一直在换棒。它既不能告诉你"这是谁", 也不能告诉你"它在干嘛"。**
