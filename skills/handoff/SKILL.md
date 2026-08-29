@@ -1143,8 +1143,24 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 > git -C <worktree> status --porcelain    # 仍然必须为空
 > git -C <worktree> stash list            # 必须为空 —— 分支没了, stash 就是最后的本地孤本
 > gh pr list --head <原分支名> --state all --json number,state   # 必须 MERGED 或 CLOSED
+> git -C <worktree> diff origin/main..HEAD --stat                # ⭐ 必须为空 —— 见下
 > ```
 >
+> ⭐⭐ **第 4 条是 2026-08-29 加的, 因为前三条会放行【内容被孤儿化】的分支** ——
+> **`PR 已 MERGED` 不等于「这条分支上的东西都进了 main」。**
+>
+> 📌 **实测(同日两条线各自独立撞到)**: 一棒在收尾时又提交了一次并推上去, **7 秒后** auto-merge 触发,
+> 而 squash 用的是**上一个 SHA** ⇒ 最后那次提交输掉竞态, **26 行内容永远留在了那条"已合并"的分支上**。
+> 前三条判据**全部通过**(工作区干净 / stash 空 / PR MERGED), 全程**没有任何东西报错**。
+> 另一条线在 detached HEAD 下自发加了同样的检查(逐文件比对 branch 版 vs `origin/main` 版), 理由相同。
+>
+> ⚠ **第 4 条非空不等于"不能回收"** —— 内容还在**远端分支**上, 删本地 worktree 不会丢。
+> 它要挡的是**另一件事**: **你以为已经交付的东西, 其实没进 main, 而下一棒读的是 main。**
+> ⇒ 非空时先把差异**捡回来**(`git checkout <分支SHA> -- <路径>`)再走正常提交路径, 然后才回收。
+>
+> 🔑 **一般式(本 skill 已收的那一族又一例)**: **「流程走完了」和「产物到位了」是两件事。**
+> 这里的 `MERGED` 是流程状态, 而要问的是产物状态。
+
 > ⚠ 这里用 **PR 状态**、而不是上面刚否掉的 `git merge-base --is-ancestor` —— 两者不是一回事:
 > 后者是本地 git 推断(会被 squash 骗), 前者是 GitHub 的权威记录(squash 不影响它)。
 > ⚠ 还有一层兜底: **`git worktree remove` 不加 `--force`**, 真有脏东西 git 自己会拦。
