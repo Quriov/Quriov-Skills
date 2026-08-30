@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-08-30g -->
+<!-- handoff-skill-rev: 2026-08-30h -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -797,6 +797,34 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 | 3f | Output proposal table | Aggregate 3a-3e write-actions → wait user confirm per item |
 
 ⚠ Side effects: 3a-3d / 3f propose write actions MUST user confirm. 3e read-only OK 直接跑.
+> ⛔⛔ **改 state 文件之前先确认你改的是【哪一份】—— 它在每个 worktree 里各有一份。**
+> git 检出的必然结果: 一个仓有 N 个 worktree 就有 N 份 `active-tracks.yaml`(或等价的 state 文件),
+> **各自的值可以都不同**, 而**保鲜闸门按 cwd 解析仓根 ⇒ 它读的是"你所在 worktree 的那份"**。
+>
+> 📌 **实测(2026-08-29, 就发生在某棒跑自己这一步的时候)—— 同一个字段, 三个不同的值**:
+> ```
+> Step 0 闸门报        last_updated = 08-28
+> Step 2a 我 grep 到    last_updated = 08-25   ← 我看的是【主检出】那份
+> 我改完之后闸门仍报    last_updated = 08-28   ← 它读的是【我 worktree】那份
+> ```
+> 一查该仓有 **4 份**, 每个 worktree 一份。
+>
+> **两个后果, 第二个更糟**:
+> 1. **改错文件 ⇒ 闸门照旧红**, 而你以为自己已经改了;
+> 2. ⚠⚠ **主检出往往是【另一条线】的工作树** ⇒ 你等于**在别人的工作区里留下未提交改动**。
+>
+> ✅ **改【你自己 worktree 里】那一份**(它才是会被 commit、也是闸门会读的那份), 并**在同一个 cwd 下复跑闸门**:
+> ```bash
+> cd <你的 worktree> && <改 state 文件>
+> bash <skill>/scripts/handoff-freshness-check.sh <track>
+> ```
+> 🔑 **一般式(与本 skill 已有的两条同族, 落在第三个对象上)**:
+> · 已有: 文档/看板的地址与 cwd 有关 ⇒ 同名多份;
+> · 已有: 同一条 session 的两个工作目录对「某文件存不存在」给出相反答案;
+> · **本条: 【git 跟踪的状态文件】每个 worktree 各一份** ——
+>   **「我改了」和「我改的那份生效了」是两件事。**
+> ⇒ **凡是"改一个文件再让闸门验"的两步动作, 先确认两步作用在同一份文件上。**
+
 ⚠ **3b state-pin (state-rot 根治)**: 旧协议把 state 更新指向 CLAUDE.md 又"不强制改" → frozen 上百 commit; 后改指 active-tracks 又让每轨塞进度叙事 → 文件膨胀 + 僵尸条目。现模型: active-tracks 只留**约束层 + `last_updated`** (freshness 闸门验); **进度/下一步移出** — 有任务板的仓进 task issue, 否则进 handoff doc。约定维护的 state 必腐, 原生 issue 状态 + 自动巡检才兜得住。
 
 Step 3 sub-check 详细 (each step 完整 procedure + rationale) 见 protocol doc § Step 3.
