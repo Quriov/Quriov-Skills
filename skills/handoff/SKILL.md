@@ -799,6 +799,9 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 >   ⛔ ListAgents  → 【已作废 2026-09-03】用工作目录名找同名那行 —— worktree 会换住户,
 >                    名字一直挂着前任 ⇒ 会送给现住户。实证: 有线照此发 cc控制、发到了 CI。
 >   ✅ 正解        → list_sessions 按标题找到线 → 取 sessionId(local_…) → ccd send_message 直接发
+>   ⭐ 理由是【地址形式】不是工具好坏: 传 sessionId 时回执自带收件方标题(两个工具都带, 发错当场暴露);
+>      传 cwd 名时回执只有 (another Claude session)。ccd 那个参数就叫 session_id、结构上只收 sessionId
+>      ⇒ 不给你犯错的机会; 内置 SendMessage 的 to 两种都收 ⇒ 给了。
 > ```
 > ⛔⛔ **别按工作目录名推断这是哪条线 —— 它不是「没有信息」, 是「有【错误】信息」**:
 > **目录名携带的是【上一个住户】的身份**, 而那多半是另一条**真实存在、此刻还活着**的线。
