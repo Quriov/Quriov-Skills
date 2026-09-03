@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-03 -->
+<!-- handoff-skill-rev: 2026-09-03b -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -693,6 +693,27 @@ Scroll conversation (use ToolSearch / grep on user message text if needed). Extr
 > ⚠ **放松的是"发现之后要不要问", 不是"要不要查"**: 本步仍是**每次必跑的步骤**, 不是"记得看一眼"。它 2026-08-20/21 两天内在两条线上各救过一次; 眼镜线原话:「我当时并不觉得自己站在死分支上……**如果它是一句『记得检查一下』而不是一个步骤, 我 100% 会跳过**。」
 
 ### Step 2c: Draft handoff doc
+
+> ⭐⭐ **先跑一条命令, 把本段要引用的【数】一次拿全 —— 别一条条现敲。**
+> ```bash
+> bash <skill>/scripts/handoff-selfcheck.sh --repo "$PWD" --transcript <本 session 的 jsonl>
+> ```
+> **脚本随本 skill 分发**, 在本 skill 目录的 `scripts/` 下(与 `handoff-freshness-check.sh` 同处)。
+> 一次出全:今天几号 · 分支/落后/自有提交/工作区 · **哪些提交还没进 main** · **本分支 PR 状态** ·
+> 最近合入的 PR · **handoff 目录在哪(探测, 不假设 `docs/handoffs`)** · **本 session 压过几次(含 pre/post tokens)** ·
+> ⭐ **跨线消息按线分组的收发条数**。`--label <本线 label>` 再顺带数 open issue。
+>
+> 📌 **为什么值得单开一个脚本**:2026-09-02 读 7 份收尾转录, 三大成本来源之一是「**到收尾才第一次去数数**」——
+> **最长那份连着 5 次调用只为拿准一个跨线消息数**。这些全是彼此独立的只读查询, 每跑一条都要重读几十万上下文。
+>
+> 🚨 **`--transcript` 不给就只列候选、不猜** —— 转录按**session 的 cwd** 归档, 而脚本的 cwd 是你运行它的地方,
+> 两者经常不同(典型:工作树被回收、cwd 被重置回仓根, 而你在工作树里跑脚本)。**自己认哪份是本 session。**
+>
+> ⚠ **上线前它被真跑抓出 5 个 bug, 其中 3 个是【假绿】** —— 留在这里当判据, 别在别处重犯:
+> ① BSD sed 不支持 lazy `+?` ⇒ 取 owner/repo 返回空串 ⇒ **`gh --repo ""` 静默回落到 cwd 的仓**;
+> ② 在 `json.dumps` 的结果上正则匹配内容 ⇒ 引号已转义成 `\"`、冒号后有空格 ⇒ **永远匹配不到, 报一个正常的 0**;
+> ③ 按 mtime 排「最近三份 handoff」⇒ **checkout 会把 archive 里的老文件刷成最新**。
+> 🔑 **三个都长得像「正常的空结果」。⇒ 凡是猜路径 / 猜格式的代码, 上线前在【两个不同的真实仓】上各跑一遍。**
 
 > ⭐⭐ **先看有没有【账本】—— 有的话这一步是【结账】, 不是【从头写】。**
 >
