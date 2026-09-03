@@ -94,7 +94,9 @@ for d in docs/handoffs context/handoffs handoffs .claude/handoffs; do
     echo "   最近三份(按文件名日期, 已排除 archive/):"
     # ⚠ 只认 20xx- 打头: 字符串倒序时大写字母(HOWTO/TEMPLATE/README/NEXT-…)排在数字前面,
     #   实测把 NEXT-SESSION-PROMPT.md 和 HOWTO.md 排进了「最近三份」。
-    find "$REPO/$d" -name '20*.md' -type f -not -path '*/archive/*' 2>/dev/null \
+    # ⚠ 排除 archive/ 与 attachments/ —— 后者是交接单的附件, 不是交接单本身
+    #   (CI/AI Review v6.7 2026-09-03 实测: 它那次「最近三份」前两名都是 attachment)
+    find "$REPO/$d" -name '20*.md' -type f -not -path '*/archive/*' -not -path '*/attachments/*' 2>/dev/null \
       | sed "s#^$REPO/##" | sort -r | head -3 | sed 's/^/     /'
     FOUND=1
   fi
@@ -144,16 +146,45 @@ with open(F, encoding='utf-8') as f:
                 if not isinstance(b, dict): continue
                 if b.get('type') == 'text':
                     body += b.get('text') or ''
-                elif b.get('type') == 'tool_use' and 'send_message' in (b.get('name') or ''):
-                    sent[str((b.get('input') or {}).get('session_id', '?'))] += 1
-        for m2 in re.finditer(r'<cross-session-message from="([^"]+)" name="([^"]*)"', body):
-            recv[f"{m2.group(2)} ({m2.group(1)})"] += 1
+                elif b.get('type') == 'tool_use' and 'send' in (b.get('name') or '').lower():
+                    # 🚨 别按单一工具名过滤 —— 两个工具都会发跨线消息:
+                    #    ccd 的叫 send_message(参数 session_id), 内置的叫 SendMessage(参数 to)。
+                    #    原判据写的是 `'send_message' in name`, 匹配不到 SendMessage ⇒ 整整一个通道无声漏掉,
+                    #    而它打印出来的是一个【量出来的、错的 0】—— 比不打印更可信。(CI/AI Review v6.7 报, 2026-09-03)
+                    i = b.get('input') or {}
+                    tgt = str(i.get('session_id') or i.get('to') or '?')
+                    sent[tgt] += 1
+        # 🚨 属性名有两种: local_ 通道是 name=, uds 通道是 from-name= —— 只认一种会漏掉一整个通道。
+        #    原正则还要求 name 紧跟 from, 中间有别的属性就断。(CI/AI Review v6.7 报, 2026-09-03)
+        for m2 in re.finditer(r'<cross-session-message\s+from="([^"]+)"([^>]*)>', body):
+            frm, rest = m2.group(1), m2.group(2)
+            nm = re.search(r'(?:from-)?name="([^"]*)"', rest)
+            nm = nm.group(1) if nm else ''
+            recv[f"{nm or '(无名)'} ({frm})"] += 1
 print(f"转录行数: {n}")
 print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b for a,b in compacts)}" if compacts else ""))
-print(f"\n发出的跨线消息: {sum(sent.values())} 条")
+# 🚨🚨 【刻意不打印「N 条线」】—— 机器归并不了「线」, 打印一个算不准的数比不打印更危险。
+#    uds 通道的名字是 **cwd 目录名**(worktree 首任起的), local_ 通道的名字是 **session 标题**,
+#    两者之间没有可靠映射 —— 那正是「用 cwd 名找收件线」这条规则 2026-09-03 被作废的同一个根源:
+#    **worktree 会换住户。**
+#    📌 实测(本 skill 作者自己那条 session): 按名字去重得「8 条线」, 真值是 **5 条** ——
+#    「智能眼镜-总控 v6.1 / competent-borg-f7485f-01 / -98」是同一条,
+#    「智能眼镜-IOS v5.0 / smart-glasses-ios-v4-3-cb1077-2e」是同一条。
+#    ⇒ 只按通道分组、把两边都摆出来, **线数留给人认**。
+
+print(f"\n发出的跨线消息: {sum(sent.values())} 条 · 目标地址 {len(sent)} 个")
 for k, v in sent.most_common(): print(f"  → {k}: {v}")
-print(f"\n收到的跨线消息: {sum(recv.values())} 条")
+print(f"\n收到的跨线消息: {sum(recv.values())} 条 · 来源地址 {len(recv)} 个")
 for k, v in recv.most_common(): print(f"  ← {k}: {v}")
+loc = {k: v for k, v in recv.items() if '(local_' in k}
+uds = {k: v for k, v in recv.items() if '(local_' not in k}
+print(f"\n⭐ 按【通道】分组 —— ⛔ 这里【不报线数】, 机器归并不了(理由见脚本注释):")
+print(f"   local_ 通道 {len(loc)} 个来源(名字 = session 标题, 是真名):")
+for k, v in sorted(loc.items(), key=lambda x: -x[1]): print(f"     {k.split(' (')[0]}: {v}")
+print(f"   uds 通道 {len(uds)} 个来源(名字 = cwd 目录名, ⚠ worktree 首任起的, 可能已换住户):")
+for k, v in sorted(uds.items(), key=lambda x: -x[1]): print(f"     {k.split(' (')[0]}: {v}")
+print("   🔑 上下两组【很可能指向同一批线】—— 同一条线走两个通道就会各出现一次。")
+print("      要线数请自己认(对 cwd 名用 list_sessions 查它现在的住户, 别按名字猜)。")
 PYEOF
 else
   echo "⇒ 本段未运行(见上)。⛔ 别把这当成「跨线消息 0 条」。"
