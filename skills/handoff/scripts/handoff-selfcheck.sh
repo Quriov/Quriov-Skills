@@ -123,6 +123,7 @@ if [ -n "${TRANSCRIPT:-}" ] && [ -f "$TRANSCRIPT" ]; then
 import json, sys, re, collections
 F = sys.argv[1]
 sent = collections.Counter(); recv = collections.Counter(); compacts = []
+recv_names = {}   # 地址 → 该地址期间用过的名字(可能不止一个)
 n = 0
 with open(F, encoding='utf-8') as f:
     for line in f:
@@ -160,7 +161,13 @@ with open(F, encoding='utf-8') as f:
             frm, rest = m2.group(1), m2.group(2)
             nm = re.search(r'(?:from-)?name="([^"]*)"', rest)
             nm = nm.group(1) if nm else ''
-            recv[f"{nm or '(无名)'} ({frm})"] += 1
+            # ⚠ 按【地址】计数, 名字只作显示 —— 同一个地址在一段时间里可能有【两个名字】
+            #    (对方改过 session 标题就会这样)。按「名字+地址」当 key 会把同一条线拆成两行。
+            #    📌 实测(总控 v6.1 报, 2026-09-03): 同一个 local_6f97eeb1… 以
+            #    「Handoff体系 v1.9」和「协作基建-Handoff体系 v1.9」占了两行 —— 那天它改过标题。
+            recv[frm] += 1
+            recv_names.setdefault(frm, [])
+            if nm and nm not in recv_names[frm]: recv_names[frm].append(nm)
 print(f"转录行数: {n}")
 print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b for a,b in compacts)}" if compacts else ""))
 # 🚨🚨 【刻意不打印「N 条线」】—— 机器归并不了「线」, 打印一个算不准的数比不打印更危险。
@@ -172,17 +179,23 @@ print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b f
 #    「智能眼镜-IOS v5.0 / smart-glasses-ios-v4-3-cb1077-2e」是同一条。
 #    ⇒ 只按通道分组、把两边都摆出来, **线数留给人认**。
 
+def _disp(a):
+    ns = recv_names.get(a) or []
+    if not ns: return f"(无名) [{a}]"
+    if len(ns) == 1: return f"{ns[0]} [{a[:24]}…]"
+    return f"{ns[-1]} [{a[:24]}…] ⚠ 期间还用过: {', '.join(ns[:-1])}"
+
 print(f"\n发出的跨线消息: {sum(sent.values())} 条 · 目标地址 {len(sent)} 个")
 for k, v in sent.most_common(): print(f"  → {k}: {v}")
 print(f"\n收到的跨线消息: {sum(recv.values())} 条 · 来源地址 {len(recv)} 个")
-for k, v in recv.most_common(): print(f"  ← {k}: {v}")
-loc = {k: v for k, v in recv.items() if '(local_' in k}
-uds = {k: v for k, v in recv.items() if '(local_' not in k}
+for a, v in recv.most_common(): print(f"  ← {_disp(a)}: {v}")
+loc = {a: v for a, v in recv.items() if a.startswith('local_')}
+uds = {a: v for a, v in recv.items() if not a.startswith('local_')}
 print(f"\n⭐ 按【通道】分组 —— ⛔ 这里【不报线数】, 机器归并不了(理由见脚本注释):")
 print(f"   local_ 通道 {len(loc)} 个来源(名字 = session 标题, 是真名):")
-for k, v in sorted(loc.items(), key=lambda x: -x[1]): print(f"     {k.split(' (')[0]}: {v}")
+for a, v in sorted(loc.items(), key=lambda x: -x[1]): print(f"     {_disp(a)}: {v}")
 print(f"   uds 通道 {len(uds)} 个来源(名字 = cwd 目录名, ⚠ worktree 首任起的, 可能已换住户):")
-for k, v in sorted(uds.items(), key=lambda x: -x[1]): print(f"     {k.split(' (')[0]}: {v}")
+for a, v in sorted(uds.items(), key=lambda x: -x[1]): print(f"     {_disp(a)}: {v}")
 print("   🔑 上下两组【很可能指向同一批线】—— 同一条线走两个通道就会各出现一次。")
 print("      要线数请自己认(对 cwd 名用 list_sessions 查它现在的住户, 别按名字猜)。")
 PYEOF
