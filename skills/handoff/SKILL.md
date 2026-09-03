@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-03b -->
+<!-- handoff-skill-rev: 2026-09-03c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -833,7 +833,45 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 Required sections (this exact order):
 1. **🎯 What this CC took over from / handed to** (1 paragraph + previous handoff path)
 2. **🔴 Verbatim user signals from this turn** (Step 1 output, with timestamps; **每条原话紧跟一行 `→ 落点:`** — 见 Step 1 § 诉求对账。这是本 doc 唯一的防丢球机制)
-3. **📋 What shipped this turn** (PR list + commit hashes — brief, git log has detail)
+3. **📋 What shipped this turn** — ⭐ **按下面三档筛, ⛔ 别一股脑全列**
+
+   > 🚨🚨 **判据是「下一棒会不会重新撞上」, ⛔ 不是「这件事完了没有」。**(宇通 2026-09-03 拍)
+   > 他的原话:「**我为什么每个事情都要交接?我不是应该只有后续真的还需要接班的事情需要交接吗?**
+   > …有时候这个 bug 就已经修复了,那具体怎么修复,你去看 PR #1234 就好 —— 也就是按需加载。」
+   >
+   > | 档 | 怎么写 |
+   > |---|---|
+   > | **A · 要接着做的**(未完成 / 被挡住) | **完整交接**:现状 + 卡在哪 + 下一步 |
+   > | ⭐ **B · 已了结, 但下一棒会重新撞上** | **一句话结论 + 号码**, ⛔ 不写过程。<br>例:「`#3541` 两周前就修完了, **卡顶是过期的 —— 别再查**」 |
+   > | **C · 已了结且不会再撞上** | **折叠成一行号码清单**(每个三五个字) |
+   >
+   > ⛔ **C 档不许「完全不写」** —— **号码要留着**。它是共同地址, 也是「按需去看 PR」的唯一入口;
+   > 连号码都不写, 下一棒**根本不知道有这件事发生过**, 那才是真的丢。
+   > **省的是【展开的描述】** —— 实测每个 PR 平均占 **85 字**, 折叠成号码约 **6 字**。
+   >
+   > 🚨 **B 档是最容易被误砍的那一档, 因为它看起来「已了结」。** 三个真实例:
+   > `#3541` 卡顶过期两周**骗了两棒人各查一遍** · 某线卡里那整段「✅ 已排除(有据, 别重查)」·
+   > 一条被写下的错误判定(「唯一办法…做不了」)——**它了结了, 而下一棒会照着走**。
+   >
+   > ### 📊 这一条是实测支撑的, 不是设计出来的(2026-09-03, CI 线 7 个接班对)
+   > | 量 | 值 | 说明 |
+   > |---|---|---|
+   > | 按「已了结」砍会漏多少 | **33%** | 标「已了结」87 个, 下一棒**回头查了 29 个** |
+   > | 反向因果排除 | **80%** | 下一棒查过 356 个号, **八成是交接单里根本没有的** ⇒ 查询是任务驱动, 不是交接单驱动 |
+   > | 交接单的预测力 | **19%** | 只覆盖下一棒查询的两成 ⇒ **「该砍」这一半也成立** |
+   > | PR 清单占交接产物 | **17–38%** | 是大头, 不是零头 |
+   >
+   > 🔑 **两个结论并存且不矛盾:该砍, 但判据不能是「完了没有」。**
+   >
+   > ⭐ **省的不是收尾那一次** —— 交接单会被新棒读上几十轮, **省的是接班之后每一轮的上下文**。
+   >
+   > ### 🚨 怎么验它有没有漏(⛔ 不许只验一次)
+   > ```bash
+   > python3 <skill>/scripts/handoff-leak-check.py <按时间排序的转录…>            # 漏失率
+   > python3 <skill>/scripts/handoff-leak-check.py <同上> --control              # 反向对照
+   > ```
+   > **每月跑一次。漏失率回升到 >20% ⇒ C 档判据太松, 要收紧**(最可能的方向:把「近两周内动过的」一律留在 B 档);
+   > 长期 <5% ⇒ B 档留太多, 可以再砍。
 4. **⚠ What's still pending / deferred** (with `blockedBy:` if applicable)
 5. **🚨 Warnings for the next CC** (specific gotchas this turn)
 6. **📌 Live state at close** (Step 0 output verbatim, with timestamp)
