@@ -796,7 +796,9 @@ Write to: `<project>/docs/handoffs/YYYY-MM-DD-<track-id>-<type>.md`
 > ```
 > 地址现查, 别照抄:
 >   list_sessions → 拿【线名 → 工作目录】  (title 是唯一权威)
->   ListAgents    → 用工作目录名找同名那行 (前缀 = 工作目录派生)
+>   ⛔ ListAgents  → 【已作废 2026-09-03】用工作目录名找同名那行 —— worktree 会换住户,
+>                    名字一直挂着前任 ⇒ 会送给现住户。实证: 有线照此发 cc控制、发到了 CI。
+>   ✅ 正解        → list_sessions 按标题找到线 → 取 sessionId(local_…) → ccd send_message 直接发
 > ```
 > ⛔⛔ **别按工作目录名推断这是哪条线 —— 它不是「没有信息」, 是「有【错误】信息」**:
 > **目录名携带的是【上一个住户】的身份**, 而那多半是另一条**真实存在、此刻还活着**的线。
