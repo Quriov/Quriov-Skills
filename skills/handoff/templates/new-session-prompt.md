@@ -17,7 +17,7 @@ variables:
 
 ### 1. Live verify (必跑, 不准信 memory)
 
-- 跑 `git log origin/main --oneline | head -10`
+- 跑 `git log origin/main --oneline -n 10`(⛔ 别写 `| head -10`: 管道后 `$?` 是 `head` 的退出码, 假绿)
 - 跑 `git status --short`
 - **Read 项目 CLAUDE.md 找 "live verify" 章节**, 跑里面列的项目特定命令
   (e.g. ssh prod / docker ps / API ping / 项目自定的状态查询)
@@ -83,6 +83,17 @@ Read {{handoff_doc_path}} 的 "⚠ What's still pending" section,
 如果起 Plan Mode, 走项目的 Plan Mode 模板 (如有, 含 § Audit Existing 决策表)。
 
 ---
+
+### 6.5 模板 fallback 探测(开局探一次并记录 —— 收尾方探不准, 只有你能探准)
+
+按顺序探, **命中即停**, 主语是【你此刻这个项目】:
+1. `<project>/.claude/templates/new-session-prompt.md`
+2. `~/.claude/templates/new-session-prompt.md`
+3. skill 自带 `<skill>/templates/new-session-prompt.md`
+
+⚠ 探【项目级】之前先对**那个仓**量新鲜度: `git -C <那个仓> rev-list --count HEAD..origin/main` 必须为 0;
+不为 0 且那个仓不归你 ⇒ 别拉平别人的检出, 改量主干那一份 `git -C <那个仓> show origin/main:.claude/templates/new-session-prompt.md`。
+把结果写进板或交接文档: `ℹ️ 模板命中 <哪一档/路径>; 缺 <哪几段>`(一样不缺也要写这行)。
 
 ### 7. 前任 worktree (Step 4c 有结论时才写; 没有则整段跳过)
 
