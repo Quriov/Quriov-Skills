@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-07a -->
+<!-- handoff-skill-rev: 2026-09-07b -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -357,9 +357,16 @@ session 启动时加载进你上下文的快照 —— `grep ~/.agents/skills/ha
 ⚠ **先 `grep` 磁盘 rev, 再决定要不要跑更新** —— 顺序不能反:
 
 ```bash
-grep -o '<!-- handoff-skill-rev: [^ ]* -->' <本 skill 的 SKILL.md>   # 已经等于源仓 ⇒ 整段跳过
+# 磁盘这份
+grep -o '<!-- handoff-skill-rev: [^ ]* -->' <本 skill 的 SKILL.md>
+# 源仓那份 —— ⭐ 只读, 不碰磁盘(2026-09-07 iOS v5.1 实测报回: 之前这里只给了读磁盘的命令,
+#   没有不跑更新就能读源仓的办法, 而「磁盘领先」那档跑更新是破坏性的 ⇒ 谨慎的人只能一律跳过)
+gh api "repos/Quriov/Quriov-Skills/contents/skills/handoff/SKILL.md?ref=main" --jq .content | base64 -d | grep -o '<!-- handoff-skill-rev: [^ ]* -->'
+#   没有 gh 时: curl -fsSL https://raw.githubusercontent.com/Quriov/Quriov-Skills/main/skills/handoff/SKILL.md | grep -o '<!-- handoff-skill-rev: [^ ]* -->'
+#   两条都拿不到(离线 / 私有) ⇒ 源仓 rev = 未知 ⇒ 按「磁盘领先」处理(不更新, 报一行), 别猜
 # ⛔ 别用裸 `grep handoff-skill-rev` —— 它会命中 5 行(4 行是文档在讲这个锚点), 取错行会拿到空值。理由见顶部。
 ```
+两个 rev 都拿到之后再看下表; **表是在跑更新之前判的, 不是看更新输出反推的**(理由见下方 2026-08-28 那段)。
 
 **比出来有三种情况, 而现成的指引只覆盖了第一种**:
 
@@ -2037,7 +2044,8 @@ Grep own doc for:
   ls context/methods/session-registry.md docs/methods/session-registry.md .claude/session-registry.md 2>/dev/null
   ```
 
-  有 ⇒ 打开它, **找到本席那一行**, 逐字核「管什么」这一列: 本棒实际管的和它写的一致吗?
+  有 ⇒ 打开它, **找到本席那一行**。**「本席最后确认」已经是今天且「管什么」没变 ⇒ 跳过, 别重复刷**(2026-09-07 iOS v5.1 报: 当天早些时候已核过时这里没有出口)。
+  否则逐字核「管什么」这一列: 本棒实际管的和它写的一致吗?
   · 不一致 ⇒ **改成本棒实际管的**(这一列由该席自己维护, 不经 leader/总控);
   · 一致 ⇒ 也要**把「本席最后确认」写成今天** —— 那一列的语义是「这一行多久没人核过」, 日期不新 = 读的人会当它过期。
   ⚠ **别只刷日期不核内容** —— 日期是「核过」的凭证, 不是「还对」的凭证; 刷了日期而职责写错, 比过期更糟(它看起来是新的)。
