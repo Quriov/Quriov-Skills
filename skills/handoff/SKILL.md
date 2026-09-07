@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-07b -->
+<!-- handoff-skill-rev: 2026-09-07c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -925,6 +925,11 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 | 3f | Output proposal table | Aggregate 3a-3e write-actions → wait user confirm per item |
 
 ⚠ Side effects: 3a-3d / 3f propose write actions MUST user confirm. 3e read-only OK 直接跑.
+
+> ⭐ **用户已明说「你做好交接, 不用问我」时的默认处置**(2026-09-07 iOS v5.1 真跑报回: 宇通说「执行 handoff 做好交接」, 而 3f 要逐项等确认, 两者打架, 它只能自己定一个做法):
+> · **强制项直接做**(state-pin / 必写的交接文档与 init prompt / 席位表本席行 / 账本结账)—— 这些不做 handoff 就不完整, 授权自治就是授权做它们;
+> · **提案类仍只列不执行**(记忆卡归档或删除 / 删卡 / 动别人地盘的文件)—— 在交接文档 §🛠 标「**未执行, 等确认**」, 下一棒或用户再拍。
+> 🔑 判据: **「授权自治」= 授权把交接做完, ⛔ 不等于授权删东西或改别人的。** 拿不准的归提案类。
 > ⛔⛔ **改 state 文件之前先确认你改的是【哪一份】—— 它在每个 worktree 里各有一份。**
 > git 检出的必然结果: 一个仓有 N 个 worktree 就有 N 份 `active-tracks.yaml`(或等价的 state 文件),
 > **各自的值可以都不同**, 而**保鲜闸门按 cwd 解析仓根 ⇒ 它读的是"你所在 worktree 的那份"**。
