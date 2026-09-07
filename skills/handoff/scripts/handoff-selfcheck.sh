@@ -147,13 +147,16 @@ with open(F, encoding='utf-8') as f:
                 if not isinstance(b, dict): continue
                 if b.get('type') == 'text':
                     body += b.get('text') or ''
-                elif b.get('type') == 'tool_use' and 'send' in (b.get('name') or '').lower():
+                elif b.get('type') == 'tool_use' and (b.get('name') or '').split('__')[-1] in ('send_message', 'SendMessage'):
                     # 🚨 别按单一工具名过滤 —— 两个工具都会发跨线消息:
                     #    ccd 的叫 send_message(参数 session_id), 内置的叫 SendMessage(参数 to)。
                     #    原判据写的是 `'send_message' in name`, 匹配不到 SendMessage ⇒ 整整一个通道无声漏掉,
                     #    而它打印出来的是一个【量出来的、错的 0】—— 比不打印更可信。(CI/AI Review v6.7 报, 2026-09-03)
+                    # 🚨 第二次修(iOS v5.1 报, 2026-09-07): 上一版放宽成 `'send' in name` 又反过来【多算】——
+                    #    SendUserFile / lark 的 send 类工具都被当成跨线消息, 目标取不到就打成「→ ?: 2」。
+                    #    ⇒ 只认这两个精确名(去掉 mcp__…__ 前缀后比), 别按子串。
                     i = b.get('input') or {}
-                    tgt = str(i.get('session_id') or i.get('to') or '?')
+                    tgt = str(i.get('session_id') or i.get('to') or f"?(工具 {b.get('name')} 无 session_id/to)")
                     sent[tgt] += 1
         # 🚨 属性名有两种: local_ 通道是 name=, uds 通道是 from-name= —— 只认一种会漏掉一整个通道。
         #    原正则还要求 name 紧跟 from, 中间有别的属性就断。(CI/AI Review v6.7 报, 2026-09-03)
@@ -187,8 +190,11 @@ def _disp(a):
 
 print(f"\n发出的跨线消息: {sum(sent.values())} 条 · 目标地址 {len(sent)} 个")
 for k, v in sent.most_common(): print(f"  → {k}: {v}")
-print(f"\n收到的跨线消息: {sum(recv.values())} 条 · 来源地址 {len(recv)} 个")
+print(f"\n收到的跨线消息: {sum(recv.values())} 条 · 来源地址 {len(recv)} 个 —— 明细 {len(recv)} 行, 合计 {sum(recv.values())}(⚠ 别用 head 截这段: 截了就会「总数 19、明细只见 4 行」)")
 for a, v in recv.most_common(): print(f"  ← {_disp(a)}: {v}")
+# 自洽断言: 明细之和必须等于总数 —— 不等就是解析有洞, 打出来而不是让读的人猜信哪个(iOS v5.1 报, 2026-09-07)
+_tot = sum(recv.values()); _det = sum(v for _, v in recv.most_common())
+if _tot != _det: print(f"  ❌ 明细合计 {_det} ≠ 总数 {_tot} —— 解析有洞, 两个数都别信")
 loc = {a: v for a, v in recv.items() if a.startswith('local_')}
 uds = {a: v for a, v in recv.items() if not a.startswith('local_')}
 print(f"\n⭐ 按【通道】分组 —— ⛔ 这里【不报线数】, 机器归并不了(理由见脚本注释):")
