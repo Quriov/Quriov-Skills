@@ -17,6 +17,23 @@ variables:
 
 ### 1. Live verify (必跑, 不准信 memory)
 
+⭐ **第 0 件:先把你脚下这份 worktree 拉到最新 —— 不拉平, 后面每一个判断都建立在过期代码上。**
+(宇通 2026-09-09 拍:「基于一个过期的 WorkTree 的情况给出的判断, 那肯定也是过期的, 这个影响很大」)
+桌面端会把已归档 session 的 worktree **轮换**给新 session:目录名还是前任的、代码停在前任离开那天
+(2026-09-09 实测:两条活线各落后 main **346 / 483** 个提交, 目录名都是别的线的)。
+
+- `git fetch origin` —— ⛔ **不 fetch 的 `rev-list` 比的是本地缓存的 origin/main, 数出来的 0 是假的**
+- `git rev-list --count HEAD..origin/main` → 我落后多少;`git rev-list --count origin/main..HEAD` → 我有几个自有提交
+- 落后不是 0 就拉平, **按「有没有自有提交」分三种**(细表与实测在 handoff skill Step 0 的 🚨 那节):
+  | 自有提交 | 怎么拉平 |
+  |---|---|
+  | 0 | `git merge --ff-only origin/main` |
+  | >0 且 `gh pr list --head <分支> --state merged` 为空 | `git merge origin/main`(**不带** `--ff-only`) |
+  | >0 且那个 PR 已 MERGED(被 squash 了) | `git checkout -B <新分支名> origin/main` |
+- ⛔ 冲突了**停下来报给用户**, 别 `--force`、别 `reset --hard`、别删别人的东西
+- 拉平后**再量一次**, 把三个数(落后 / 自有 / 拉平后)写进你第一条回复 —— 没有这三个数 = 这一步没做
+
+然后:
 - 跑 `git log origin/main --oneline -n 10`(⛔ 别写 `| head -10`: 管道后 `$?` 是 `head` 的退出码, 假绿)
 - 跑 `git status --short`
 - **Read 项目 CLAUDE.md 找 "live verify" 章节**, 跑里面列的项目特定命令
