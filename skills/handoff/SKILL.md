@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-07c -->
+<!-- handoff-skill-rev: 2026-09-09a -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -189,7 +189,8 @@ You are about to close a long Claude Code session. The user is context-fatigued 
 Before reading any memory / handoff doc / CLAUDE.md, run **all of these**:
 
 1. `git log origin/main --oneline -10` → cite output verbatim in § 6
-2. ⭐ `git rev-list --count HEAD..origin/main` → **你手上这份落后主干多少**。不是 0 就**先拉平再动手** — 怎么拉平见下方 🚨
+2. ⭐ **先 `git fetch origin`**, 再 `git rev-list --count HEAD..origin/main` → **你手上这份落后主干多少**。不是 0 就**先拉平再动手** — 怎么拉平见下方 🚨
+   ⚠ **2026-09-09 补 fetch**:此前这条比的是本地缓存的 origin/main, 缓存多久没刷、数出来的 0 就多假。同日宇通拍:接班模板 §1 也加了同一套「fetch → 量 → 拉平」(此前只有出棒方量, 接班方不量 ⇒ 轮换来的陈旧 worktree 没有任何一步会拉平, 实测两条活线落后 346 / 483)。
 3. `git status --short` → cite output
 4. Project's "⚡ Live Verify" section in CLAUDE.md / AGENTS.md → run any listed commands (e.g. `ssh prod docker ps`, `curl /healthz`, 项目自定的状态查询), cite output
    - No such section → project hasn't configured one, skip
@@ -257,7 +258,7 @@ for R in <本线产出会落到的每一个仓根>; do
   echo -n "  $R 未提交改动: ";      git -C "$R" status --short 2>&1 | wc -l | tr -d ' '
 done
 echo "=== [1] origin/main HEAD ==="; git log origin/main --oneline -10        || echo "❌ [1] 失败(exit $?)"
-echo "=== [2] 我这份落后多少 ==="  ; git rev-list --count HEAD..origin/main   || echo "❌ [2] 失败(exit $?)"
+echo "=== [2] 我这份落后多少 ==="  ; git fetch -q origin && git rev-list --count HEAD..origin/main || echo "❌ [2] 失败(exit $?)"
 echo "=== [3] 工作区 ==="          ; git status --short                       || echo "❌ [3] 失败(exit $?)"
 echo "=== [4] <项目那条> ==="      ; <项目 CLAUDE.md ⚡Live Verify 里那条>      || echo "❌ [4] 失败(exit $?)"
 ```
