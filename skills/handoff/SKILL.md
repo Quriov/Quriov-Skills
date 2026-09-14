@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-14a -->
+<!-- handoff-skill-rev: 2026-09-14b -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -919,7 +919,7 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 | Sub | What | Tool |
 |-----|------|------|
 | 3a | Memory drift scan | `grep -rEn "(完全无人\|已弃用\|已停用\|wind down\|无流量\|stub\|未实现)" memory/` → cross-validate Step 0 |
-| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin: 刷新**本仓探测到的那份 state SoT** (强制, 非 propose; freshness 闸门验它)。探测顺序: **项目 `CLAUDE.md`/`AGENTS.md` 里的显式声明优先**(写法: 一行里同时出现 `state SoT`/`状态单源` 标记词和路径, 如 `> 本仓 state SoT = \`context/worklines/\``), 无声明才退回常见路径 `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/`。⚠ 只认**显式标记**, 不认正文里顺口提到的路径 —— 否则叙述性提及会被当成声明。**2026-08-22 再收紧**: 光「同一行里有标记词 + 路径」也不够 —— 眼镜仓有一行叙述同时含「动态状态单源」(说的是**卡顶状态块**, 与 state SoT 是两回事)和一个路径, 且**排在真声明前面**, 于是真声明被挡住、闸门去查了那份被该仓明令「不要手改」的机器生成文件, **并因此诱导执行者去手改它才能过闸**(真发生过一次)。现在脚本**优先认赋值形态**(`标记词 = 路径`, 即下面这个写法), 全仓找不到赋值形态才退回松散匹配。⇒ **声明就照下面这一行写, 别只在正文里提。**yaml 形态改本 track 的 `last_updated`=今天; **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
+| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin: 刷新**本仓探测到的那份 state SoT** (强制, 非 propose; freshness 闸门验它)。探测顺序: **项目 `CLAUDE.md`/`AGENTS.md` 里的显式声明优先**(写法: 一行里同时出现 `state SoT`/`状态单源` 标记词和路径, 如 `> 本仓 state SoT = \`context/worklines/\``), 无声明才退回常见路径 `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/`(⚠ **文件头自称生成物的候选一律跳过并出声** —— 前 30 行含「生成物 / 别手改 / do not edit / generated」: 要人刷新的正本不可能是一份「别手改」的文件。2026-09-14 实撞: 眼镜仓声明行 09-02 随 AGENTS.md 拆薄丢失, 闸门退到 09-10 已改成生成物的 `context/active-tracks.md`, 还提示「改一下再跑」)。⚠ 只认**显式标记**, 不认正文里顺口提到的路径 —— 否则叙述性提及会被当成声明。**2026-08-22 再收紧**: 光「同一行里有标记词 + 路径」也不够 —— 眼镜仓有一行叙述同时含「动态状态单源」(说的是**卡顶状态块**, 与 state SoT 是两回事)和一个路径, 且**排在真声明前面**, 于是真声明被挡住、闸门去查了那份被该仓明令「不要手改」的机器生成文件, **并因此诱导执行者去手改它才能过闸**(真发生过一次)。现在脚本**优先认赋值形态**(`标记词 = 路径`, 即下面这个写法), 全仓找不到赋值形态才退回松散匹配。⇒ **声明就照下面这一行写, 别只在正文里提。**yaml 形态改本 track 的 `last_updated`=今天; **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
 | 3c | Handoff deferred 过期 | Read 最近 3-5 handoffs, scan deferred items, propose archive done |
 | 3d | CC 自塞垃圾 | Pattern: `next-step-*.md`, `phase[0-9][a-z]-state.md`, low-density meta docs → propose archive |
 | 3e | External KB read-only verify | Project CLAUDE.md mentions 外部 KB (Notion / Confluence / wiki 等) → 跑 read query 不需 user confirm |
@@ -1200,7 +1200,11 @@ Template body 含 ```bash``` code block, 3 反引号会被内层撑破; 4 反引
 
 > 🔑 **为什么焊进 handoff**: 「开局即命名」如果只写在规约文件里, 就是又一个"靠接班的人记得" —— 而 handoff 产出 init prompt 是**每次交接的必经之路**。把标题算好、直接写进接班方读到的第一行, 接班方就不需要"记得"命名。同款思路见 Step 0.5 (skill 自更新) 与 Step 3b (拍板回写)。
 
-### Step 4c: 把「本 session 的 worktree 可否回收」算好, 写进接班 prompt
+### Step 4c: 把「本 session 的 worktree 在哪、里面住着谁」写进接班 prompt(⛔ 不判回收)
+
+> ✅✅ **现行做法(2026-08-31 用户拍板): handoff 【不负责】 worktree 回收 —— 只报「前任 worktree 在哪、里面住着谁、查于几点」, 不下任何删除指令。** 理由与实测见本节下方「最终做法」。
+> ⚠ **本节下面凡是写「回收 / 可回收 / 由接班方删」的段落, 都是 08-31 之前的做法与实测, 留作推理链, ⛔ 不是指令。**
+> (2026-09-14 加这两行: 08-31 只改了中段的示例块, 本节开头仍在教「由接班方删」, 两份模板也没跟 —— 设计系统 v2.7 跑 handoff 时撞出。)
 
 **只在本 session 跑在独立 worktree 里时做** (`git rev-parse --git-common-dir` 与 `--git-dir` 不同即是; 在主检出里跑 → 整段跳过)。
 
@@ -1599,15 +1603,16 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 (那由用户/harness 决定, 不由你决定)。所以这条不是"提醒接班小心", 是**把一个你验不了的前提
 显式交给唯一能验的人**。
 
-⚠ **回收指令里要连"怎么复核"一起写**(上面那两行 ⚠ 别省): 你写下的是**你那个时点**的结论,
+⚠ **报告里要连"怎么复核"一起写**(上面那两行 ⚠ 别省): 你写下的是**你那个时点**的结论,
 而接班方复核时看到的是**变化之后**的状态。只给结论、不给复核口径, 它一看到 fatal 就会停手。
 
-⛔ **判定"不可回收"时也【不要】把那个槽位留空** —— **空着和"没有前任 worktree"长得一模一样**,
+⛔ **查到什么都【不要】把那个槽位留空** —— **空着和"没有前任 worktree"长得一模一样**,
 而下一棒分不出这两者。
 
-**任一条不过** → **不要**写回收指令, 改成如实说明, 例:`⚠ 前任 worktree <路径> 有未提交改动, 先别删 —— 需要人看一眼是否还要`。
+**查到脏东西 / 有住户** → 如实写进报告, 例:`⚠ 前任 worktree <路径> 有未提交改动 —— 需要人看一眼是否还要`。
+⛔ **2026-08-31 起任何情况下都不写回收 / 删除指令**(上文「最终做法」)。本段原先写「任一条不过才不写回收指令」, 隐含「全过就写」, 与之冲突; 2026-09-14 订正。
 
-⚠ **三条铁律**:
+⚠ **三条铁律**(08-31 起 handoff 不下删除指令; 以下只在**用户明确要求删某个 worktree** 时适用):
 1. **只点名这一个 worktree**, 绝不让接班方"扫一遍全仓把没用的都删了" —— 会误伤**看起来像孤儿、实际是活基建**的专用检出 (真实案例: 某仓一个 detached、无 session 绑定、2GB 的目录, 长得完全像残留, 实际是**线上桥服务的专用部署检出**, 删了服务就断)。
 2. **不加 `--force`** —— 让 git 自己兜住脏工作区这道底。
 3. **只对"已被接棒取代"的前任做**。⚠ 有些项目把**休眠 session 视为正当态**(有意留着待复用/仍负回复义务), 它们的 worktree **不该清**。区别在于: 被接棒的前任不会再被复用了 —— 而**只有你知道自己正在被谁接棒**, 外部扫描器判不出来。这正是这件事该由 handoff 做、而不是做成定时清理任务的原因。
@@ -2208,8 +2213,10 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 - Multi-worktree env → `gh pr merge` 撞冲突时用 API workaround (见下方 anti-pattern 清单 "multi-worktree gh pr merge" 那条)
 - **环境开不了 PR** (Codex 沙箱无 gh CLI / 无 GitHub 写权限) → commit + push 照做, 然后**必须显式输出**: "⚠ 本环境无法开 PR — handoff 已推到分支 `<branch>` 但**未进 main, 下个 session 看不到它**; 请在 GitHub / Codex UI 从该分支开 PR 并 merge", 并列进 Step 6 § Uncertainty。**做不了可以, 静默不行** (真实案例: 某 push-only 环境的成员 push 后 self-lint 报 0 warnings, 用户对比才发现没 PR — 交接差点断链)
 
-> ⏰ **push 完成后回来做一件事**: 跑 Step 4c 那三条 worktree 回收判据(**它们到这里才可能为真**), 把结果填进接班 prompt。
-> Step 6 若已经输出过, 就补一行:「♻️ 补充: 前任 worktree `<绝对路径>` 三条判据已过, 可回收」。**别让这一步随 Step 6 输出完就丢了** —— 它是 worktree 不再堆积的唯一出口。
+> ⏰ **push 完成后回来做一件事**: 把 Step 4c 那段「前任 worktree 报告」补齐(路径 · 分支 · 住户 · 查询时刻), 填进接班 prompt 的 §7。
+> Step 6 若已经输出过, 就补一行:「📍 补充: 前任 worktree `<绝对路径>`(查于 HH:MM)· 住户 <谁 / 无>」。
+> ⛔ **别写「可回收」, 也别把它当成「worktree 不再堆积的出口」** —— 2026-08-31 用户拍板: 回收归 harness 池化(实测 10/10 · 5/5), **不归 handoff**。
+> (本段 08-31 后漏改, 一直写着「三条判据已过, 可回收」与「唯一出口」; 2026-09-14 设计系统 v2.7 跑 handoff 时连同两份模板一起撞出。)
 
 📚 **本节的完整实测与出处**(stash 那次 · remote-rejected 那次 · 被咬两次的完整叙述 · 六例全清单 · 自动合并白名单那次)
 → `references/handoff-protocol.md § Step 7 的完整实测与出处`
