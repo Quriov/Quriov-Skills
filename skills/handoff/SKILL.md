@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-14b -->
+<!-- handoff-skill-rev: 2026-09-14c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:

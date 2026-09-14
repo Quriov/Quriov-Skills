@@ -122,7 +122,7 @@ if [ -n "${TRANSCRIPT:-}" ] && [ -f "$TRANSCRIPT" ]; then
   python3 - "$TRANSCRIPT" <<'PYEOF' || echo "❌ [6] 解析失败(exit $?)"
 import json, sys, re, collections
 F = sys.argv[1]
-sent = collections.Counter(); recv = collections.Counter(); compacts = []
+sent = collections.Counter(); recv = collections.Counter(); compacts = {}
 recv_names = {}   # 地址 → 该地址期间用过的名字(可能不止一个)
 n = 0
 with open(F, encoding='utf-8') as f:
@@ -137,7 +137,9 @@ with open(F, encoding='utf-8') as f:
         #    实测两个都中过。⇒ 结构化的走 dict 取值; 文本的走 txt() 提取出来的原文。
         cm = r.get('compactMetadata') or (r.get('message') or {}).get('compactMetadata') or {}
         if cm:
-            compacts.append((str(cm.get('preTokens', '?')), str(cm.get('postTokens', '?'))))
+            # 🚨 按 uuid 去重(2026-09-14, cc控制 v2.1 报): 转录会重放旧的压缩边界 ——
+            #    实测真实 4 次, 带 compactMetadata 的行有 7 行; 不去重就报「压缩过 7 次」, 顺序也会乱。
+            compacts[r.get('uuid') or f'row{n}'] = (r.get('timestamp') or '', str(cm.get('preTokens', '?')), str(cm.get('postTokens', '?')))
         c = (r.get('message') or {}).get('content')
         body = ''
         if isinstance(c, str):
@@ -172,7 +174,7 @@ with open(F, encoding='utf-8') as f:
             recv_names.setdefault(frm, [])
             if nm and nm not in recv_names[frm]: recv_names[frm].append(nm)
 print(f"转录行数: {n}")
-print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b for a,b in compacts)}" if compacts else ""))
+print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b for _, a, b in sorted(compacts.values()))}" if compacts else ""))
 # 🚨🚨 【刻意不打印「N 条线」】—— 机器归并不了「线」, 打印一个算不准的数比不打印更危险。
 #    uds 通道的名字是 **cwd 目录名**(worktree 首任起的), local_ 通道的名字是 **session 标题**,
 #    两者之间没有可靠映射 —— 那正是「用 cwd 名找收件线」这条规则 2026-09-03 被作废的同一个根源:
