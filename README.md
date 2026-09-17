@@ -48,22 +48,6 @@ grep -r skill-rev ~/.agents/skills/handoff/SKILL.md
 | `handoff` | 收尾长 session:产出结构化交接文档 + 下个 session 的接班 prompt。含 live-verify(不信 memory 自报)、逐字用户信号提取、memory hygiene、self-lint 防虚报完成 |
 | `deep-intent-analysis` | 动手前做三层意图分析(表面→直接→深层)+ 举一反三,拿到范围确认再写代码 |
 
-### 社媒读 / 发
-
-| Skill | 干什么 |
-|---|---|
-| `reddit-research` / `reddit-publish` | Reddit 调研(Arctic Shift API,免认证)/ 发帖与回复 |
-| `x-research` / `x-publish` | X(推特)调研 / 发推与回复 |
-| `youtube-research` / `youtube-publish` | YouTube 调研(Data API v3)/ 发评论与回复 |
-| `bili-research` | B 站创作者数据调研 |
-| `xhs-research` | 小红书调研 |
-
-发布类 skill 一律 **默认 dry-run**,必须显式加 `--send` 才真发。凭据走各自的 `.secrets/` 或 `*.example` 约定,不进 git。
-
-> 📚 社媒这套工具的完整项目上下文(背景 / 架构 / 决策 / 踩坑台账 / 上手指南)见 [docs/README.md](docs/README.md)。
->
-> ⚠️ `x-research` / `x-publish` / `xhs-research` 依赖 Quriov 自有的服务器环境与登录态,**外部使用者装了也跑不通** —— 请当参考实现看。
-
 ## 迁移说明
 
 本仓原名 `ai-dev-toolkit`,已改名 `Quriov-Skills`(GitHub 会自动重定向旧链接)。
@@ -74,6 +58,8 @@ grep -r skill-rev ~/.agents/skills/handoff/SKILL.md
 |---|---|
 | `Qin-C/claude-handoff-skill` | `skills/handoff` |
 | `Qin-C/deep-intent-analysis` | `skills/deep-intent-analysis` |
+
+社媒读 / 发那一组 skill(`reddit-*` / `x-*` / `youtube-*` / `bili-research` / `xhs-research`)已迁出本仓 —— 它们依赖 Quriov 自有的服务器环境与登录态,外部装了也跑不通,现在只在团队内部仓维护。
 
 同时移除了早已过时的 `rules/` `hooks/` `commands/` `install.sh`(内容仍在 git history 里)。
 skill 分发不再用 `install.sh` 人肉复制,统一走上面的 `npx skills`。
