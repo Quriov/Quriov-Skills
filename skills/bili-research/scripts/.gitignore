@@ -1,6 +1,0 @@
-# 抓取产物
-bili_videos.json
-bili_*.json
-# python
-__pycache__/
-*.pyc
