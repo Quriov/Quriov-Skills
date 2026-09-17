@@ -95,7 +95,7 @@ for d in docs/handoffs context/handoffs handoffs .claude/handoffs; do
     # ⚠ 只认 20xx- 打头: 字符串倒序时大写字母(HOWTO/TEMPLATE/README/NEXT-…)排在数字前面,
     #   实测把 NEXT-SESSION-PROMPT.md 和 HOWTO.md 排进了「最近三份」。
     # ⚠ 排除 archive/ 与 attachments/ —— 后者是交接单的附件, 不是交接单本身
-    #   (CI/AI Review v6.7 2026-09-03 实测: 它那次「最近三份」前两名都是 attachment)
+    #   (C 线 v6.7 2026-09-03 实测: 它那次「最近三份」前两名都是 attachment)
     find "$REPO/$d" -name '20*.md' -type f -not -path '*/archive/*' -not -path '*/attachments/*' 2>/dev/null \
       | sed "s#^$REPO/##" | sort -r | head -3 | sed 's/^/     /'
     FOUND=1
@@ -137,7 +137,7 @@ with open(F, encoding='utf-8') as f:
         #    实测两个都中过。⇒ 结构化的走 dict 取值; 文本的走 txt() 提取出来的原文。
         cm = r.get('compactMetadata') or (r.get('message') or {}).get('compactMetadata') or {}
         if cm:
-            # 🚨 按 uuid 去重(2026-09-14, cc控制 v2.1 报): 转录会重放旧的压缩边界 ——
+            # 🚨 按 uuid 去重(2026-09-14, B 线 v2.1 报): 转录会重放旧的压缩边界 ——
             #    实测真实 4 次, 带 compactMetadata 的行有 7 行; 不去重就报「压缩过 7 次」, 顺序也会乱。
             compacts[r.get('uuid') or f'row{n}'] = (r.get('timestamp') or '', str(cm.get('preTokens', '?')), str(cm.get('postTokens', '?')))
         c = (r.get('message') or {}).get('content')
@@ -153,22 +153,22 @@ with open(F, encoding='utf-8') as f:
                     # 🚨 别按单一工具名过滤 —— 两个工具都会发跨线消息:
                     #    ccd 的叫 send_message(参数 session_id), 内置的叫 SendMessage(参数 to)。
                     #    原判据写的是 `'send_message' in name`, 匹配不到 SendMessage ⇒ 整整一个通道无声漏掉,
-                    #    而它打印出来的是一个【量出来的、错的 0】—— 比不打印更可信。(CI/AI Review v6.7 报, 2026-09-03)
-                    # 🚨 第二次修(iOS v5.1 报, 2026-09-07): 上一版放宽成 `'send' in name` 又反过来【多算】——
+                    #    而它打印出来的是一个【量出来的、错的 0】—— 比不打印更可信。(C 线 v6.7 报, 2026-09-03)
+                    # 🚨 第二次修(A 线 v5.1 报, 2026-09-07): 上一版放宽成 `'send' in name` 又反过来【多算】——
                     #    SendUserFile / lark 的 send 类工具都被当成跨线消息, 目标取不到就打成「→ ?: 2」。
                     #    ⇒ 只认这两个精确名(去掉 mcp__…__ 前缀后比), 别按子串。
                     i = b.get('input') or {}
                     tgt = str(i.get('session_id') or i.get('to') or f"?(工具 {b.get('name')} 无 session_id/to)")
                     sent[tgt] += 1
         # 🚨 属性名有两种: local_ 通道是 name=, uds 通道是 from-name= —— 只认一种会漏掉一整个通道。
-        #    原正则还要求 name 紧跟 from, 中间有别的属性就断。(CI/AI Review v6.7 报, 2026-09-03)
+        #    原正则还要求 name 紧跟 from, 中间有别的属性就断。(C 线 v6.7 报, 2026-09-03)
         for m2 in re.finditer(r'<cross-session-message\s+from="([^"]+)"([^>]*)>', body):
             frm, rest = m2.group(1), m2.group(2)
             nm = re.search(r'(?:from-)?name="([^"]*)"', rest)
             nm = nm.group(1) if nm else ''
             # ⚠ 按【地址】计数, 名字只作显示 —— 同一个地址在一段时间里可能有【两个名字】
             #    (对方改过 session 标题就会这样)。按「名字+地址」当 key 会把同一条线拆成两行。
-            #    📌 实测(总控 v6.1 报, 2026-09-03): 同一个 local_6f97eeb1… 以
+            #    📌 实测(D 线 v6.1 报, 2026-09-03): 同一个 local_<session-uuid>… 以
             #    「Handoff体系 v1.9」和「协作基建-Handoff体系 v1.9」占了两行 —— 那天它改过标题。
             recv[frm] += 1
             recv_names.setdefault(frm, [])
@@ -180,8 +180,8 @@ print(f"本 session 压缩过 {len(compacts)} 次" + (f": {', '.join(a+'→'+b f
 #    两者之间没有可靠映射 —— 那正是「用 cwd 名找收件线」这条规则 2026-09-03 被作废的同一个根源:
 #    **worktree 会换住户。**
 #    📌 实测(本 skill 作者自己那条 session): 按名字去重得「8 条线」, 真值是 **5 条** ——
-#    「智能眼镜-总控 v6.1 / competent-borg-f7485f-01 / -98」是同一条,
-#    「智能眼镜-IOS v5.0 / smart-glasses-ios-v4-3-cb1077-2e」是同一条。
+#    「D 线 v6.1 / competent-borg-f7485f-01 / -98」是同一条,
+#    「A 线 v5.0 / track-a-v4-3-cb1077-2e」是同一条。
 #    ⇒ 只按通道分组、把两边都摆出来, **线数留给人认**。
 
 def _disp(a):
@@ -194,7 +194,7 @@ print(f"\n发出的跨线消息: {sum(sent.values())} 条 · 目标地址 {len(s
 for k, v in sent.most_common(): print(f"  → {k}: {v}")
 print(f"\n收到的跨线消息: {sum(recv.values())} 条 · 来源地址 {len(recv)} 个 —— 明细 {len(recv)} 行, 合计 {sum(recv.values())}(⚠ 别用 head 截这段: 截了就会「总数 19、明细只见 4 行」)")
 for a, v in recv.most_common(): print(f"  ← {_disp(a)}: {v}")
-# 自洽断言: 明细之和必须等于总数 —— 不等就是解析有洞, 打出来而不是让读的人猜信哪个(iOS v5.1 报, 2026-09-07)
+# 自洽断言: 明细之和必须等于总数 —— 不等就是解析有洞, 打出来而不是让读的人猜信哪个(A 线 v5.1 报, 2026-09-07)
 _tot = sum(recv.values()); _det = sum(v for _, v in recv.most_common())
 if _tot != _det: print(f"  ❌ 明细合计 {_det} ≠ 总数 {_tot} —— 解析有洞, 两个数都别信")
 loc = {a: v for a, v in recv.items() if a.startswith('local_')}
