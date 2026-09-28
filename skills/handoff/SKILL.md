@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-28b -->
+<!-- handoff-skill-rev: 2026-09-28c -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -749,7 +749,7 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 
 | Sub | What | Tool |
 |-----|------|------|
-| 3a | Memory drift scan | `grep -rEn "(完全无人\|已弃用\|已停用\|wind down\|无流量\|stub\|未实现)" memory/` → cross-validate Step 0 |
+| 3a | Memory drift scan | `grep -rEn "(完全无人\|已弃用\|已停用\|wind down\|无流量\|stub\|未实现)" <系统提示给的 memory 路径>/` → cross-validate Step 0(⛔ 别用裸 `memory/` 碰运气, 见下方 §Step 7 那行的「别自己推 `<proj>`」)|
 | 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin(⭐ 有则做, 无则跳 —— 2026-09-28 改)**: 先确认**本仓到底有没有一份要人手工刷新的 state SoT**。
 ⛔ **探测不到, 或仓里明写这道闸已取消**(典型形态: 配套脚本变成恒 `exit 0` 的兼容壳并打出「已取消」, 或 state 文件里的日期字段已被删掉)**⇒ 整条跳过, 并在交接文档里出声说跳了**。
 ⛔⛔ **别把删掉的字段加回去** —— 它可能正是那个仓刻意删的(2026-09-28 实撞: 某仓拍板删掉 `last_updated` 与交接日期闸, 而本 skill 仍教「强制刷新」; 照做会把字段写回去, 反而卡住该仓的交接自动合并)。
@@ -1784,7 +1784,7 @@ After Step 3 user confirms + CC executes file edits, classify each change by loc
 | Location | What | Action |
 |---|---|---|
 | **Git-tracked** (项目 `docs/handoffs/*.md` / `CLAUDE.md` / `AGENTS.md` / `.claude/active-tracks.yaml` / project-level `memory/*`) | repo SoT | Bundle 成 1 commit (`chore(hygiene): /handoff close — <短描述>`) + push 新 branch `claude/handoff-hygiene-<short-id>` + 开 PR + 报 # 给用户。**⚠ 本仓有直推白名单时别打包**: 交接文档单独开 PR; 白名单内的状态指针文件直推 main **并回读确认**(见本节上方的 🚨 块) |
-| **User-level memory** (`~/.claude/projects/<proj>/memory/*`) | per-user, NOT in repo | 直接 edit, 不 commit (per-machine local) |
+| **User-level memory**(路径**以系统提示里给的那个为准**, 形如 `~/.claude/projects/<proj>/memory/`)| per-user, NOT in repo | 直接 edit, 不 commit (per-machine local)。⛔ **别自己按工作目录名推 `<proj>`** —— 2026-09-28 实测: 一台机器上 `<工作目录>` 与**会话实际加载的那一份**不是同一个目录(那台机的键取的是仓根), 按目录名推会把卡写进一份**没有任何会话会加载**的目录里, 而且它看起来完全正常 —— 文件在、索引也在, 只是再也不会被读到。⭐ 判据: **「写进去了」和「会被加载」是两件事**;拿不准就用系统提示给你的那个路径, 别推导。|
 | **User-level config** (`~/.claude/commands/*` / `~/.claude/templates/*` / `~/.claude/scripts/*`) | per-user dotfile | 直接 edit (用户自己 git 维护那 dir) |
 
 > 🚨 **开 PR 前先取本仓 PR body 的字段锚点, 别按自己的结构写**:
