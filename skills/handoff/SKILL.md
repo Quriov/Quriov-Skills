@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-27a -->
+<!-- handoff-skill-rev: 2026-09-28a -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -919,7 +919,11 @@ Run all 6 sub-checks. Aggregate as numbered proposal table for user confirm per 
 | Sub | What | Tool |
 |-----|------|------|
 | 3a | Memory drift scan | `grep -rEn "(完全无人\|已弃用\|已停用\|wind down\|无流量\|stub\|未实现)" memory/` → cross-validate Step 0 |
-| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin: 刷新**本仓探测到的那份 state SoT** (强制, 非 propose; freshness 闸门验它)。探测顺序: **项目 `CLAUDE.md`/`AGENTS.md` 里的显式声明优先**(写法: 一行里同时出现 `state SoT`/`状态单源` 标记词和路径, 如 `> 本仓 state SoT = \`context/worklines/\``), 无声明才退回常见路径 `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/`(⚠ **文件头自称生成物的候选一律跳过并出声** —— 前 30 行含「生成物 / 别手改 / do not edit / generated」: 要人刷新的正本不可能是一份「别手改」的文件。2026-09-14 实撞: 某仓声明行 09-02 随 AGENTS.md 拆薄丢失, 闸门退到 09-10 已改成生成物的 `context/active-tracks.md`, 还提示「改一下再跑」)。⚠ 只认**显式标记**, 不认正文里顺口提到的路径 —— 否则叙述性提及会被当成声明。**2026-08-22 再收紧**: 光「同一行里有标记词 + 路径」也不够 —— 某仓有一行叙述同时含「动态状态单源」(说的是**卡顶状态块**, 与 state SoT 是两回事)和一个路径, 且**排在真声明前面**, 于是真声明被挡住、闸门去查了那份被该仓明令「不要手改」的机器生成文件, **并因此诱导执行者去手改它才能过闸**(真发生过一次)。现在脚本**优先认赋值形态**(`标记词 = 路径`, 即下面这个写法), 全仓找不到赋值形态才退回松散匹配。⇒ **声明就照下面这一行写, 别只在正文里提。**yaml 形态改本 track 的 `last_updated`=今天; **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
+| 3b | **Context-file health** (合并旧 3b+extra+extra-2) | **(1) State-pin(⭐ 有则做, 无则跳 —— 2026-09-28 改)**: 先确认**本仓到底有没有一份要人手工刷新的 state SoT**。
+⛔ **探测不到, 或仓里明写这道闸已取消**(典型形态: 配套脚本变成恒 `exit 0` 的兼容壳并打出「已取消」, 或 state 文件里的日期字段已被删掉)**⇒ 整条跳过, 并在交接文档里出声说跳了**。
+⛔⛔ **别把删掉的字段加回去** —— 它可能正是那个仓刻意删的(2026-09-28 实撞: 某仓拍板删掉 `last_updated` 与交接日期闸, 而本 skill 仍教「强制刷新」; 照做会把字段写回去, 反而卡住该仓的交接自动合并)。
+🔑 **判据: 本 skill 的「有则用、无则跳」DNA 对【闸】同样成立 —— 闸是仓的选择, 不是 skill 的规定。**
+探测到了才做, 且这时它是强制项(非 propose; 配套闸门验它)。探测顺序: **项目 `CLAUDE.md`/`AGENTS.md` 里的显式声明优先**(写法: 一行里同时出现 `state SoT`/`状态单源` 标记词和路径, 如 `> 本仓 state SoT = \`context/worklines/\``), 无声明才退回常见路径 `.claude/active-tracks.yaml` → `context|docs/active-tracks.md` → `context/worklines/`(⚠ **文件头自称生成物的候选一律跳过并出声** —— 前 30 行含「生成物 / 别手改 / do not edit / generated」: 要人刷新的正本不可能是一份「别手改」的文件。2026-09-14 实撞: 某仓声明行 09-02 随 AGENTS.md 拆薄丢失, 闸门退到 09-10 已改成生成物的 `context/active-tracks.md`, 还提示「改一下再跑」)。⚠ 只认**显式标记**, 不认正文里顺口提到的路径 —— 否则叙述性提及会被当成声明。**2026-08-22 再收紧**: 光「同一行里有标记词 + 路径」也不够 —— 某仓有一行叙述同时含「动态状态单源」(说的是**卡顶状态块**, 与 state SoT 是两回事)和一个路径, 且**排在真声明前面**, 于是真声明被挡住、闸门去查了那份被该仓明令「不要手改」的机器生成文件, **并因此诱导执行者去手改它才能过闸**(真发生过一次)。现在脚本**优先认赋值形态**(`标记词 = 路径`, 即下面这个写法), 全仓找不到赋值形态才退回松散匹配。⇒ **声明就照下面这一行写, 别只在正文里提。**yaml 形态**且该 track 确实还有这个字段时**改本 track 的 `last_updated`=今天(字段不存在 ⇒ 不新增, 见上方「无则跳」); **markdown 形态的工作板没有该字段时, 别为此新造一个** —— 这类仓的新鲜度由「该文件本次有没有被改动」**算**出来(闸门用 git 判), 不靠人填。⚠ **凡是要人填的状态字段都会空**(实测某仓 166 张有现状块的卡, 146 张「更新时间」是空的)。⚠ active-tracks 只承载**约束层** (worktree/forbidden/shared_invariants 等); **进度与"下一步"不再写进 active-tracks 叙事字段** (防它膨胀成叙事垃圾场) — "下一步"进 handoff doc (Step 2c pending), 任务进度进任务板 (见下 §Step 3b-任务板接线, 仅有板的仓走)。CLAUDE.md 应是指针, grep 到内联易腐 state>5行 → propose 砍指针**. (2) line counts (MEMORY>200; CLAUDE+AGENTS>300, 若项目有总行数上限约定) + dead-link + Tier A pointer 存在. (3) stale branch: `git ls-remote origin 'refs/heads/claude/*'\|wc -l`>50 cleanup + 本 turn merged PR 删 branch |
 | 3c | Handoff deferred 过期 | Read 最近 3-5 handoffs, scan deferred items, propose archive done |
 | 3d | CC 自塞垃圾 | Pattern: `next-step-*.md`, `phase[0-9][a-z]-state.md`, low-density meta docs → propose archive |
 | 3e | External KB read-only verify | Project CLAUDE.md mentions 外部 KB (Notion / Confluence / wiki 等) → 跑 read query 不需 user confirm |
@@ -2128,7 +2132,10 @@ Full format example with paste-ready template in protocol doc § Step 6.
 ## Step 7: Commit + push hygiene changes (BLOCKING — fresh-worktree defense)
 
 > 🔒 **前置闸门: commit 前必跑, 贴 output 给用户留证据 (像 status-claim-linter 那样)**
-> 1. **state-rot 防御 (每次必跑)** — `bash "$(dirname $0)/scripts/handoff-freshness-check.sh" <本 session track-id>` —— **脚本随本 skill 分发**, 在本 skill 目录的 `scripts/` 下 (项目自带 `scripts/handoff-freshness-check.sh` 或 `~/.claude/scripts/` 有旧副本时用哪个都行, 内容以 skill 自带的为准)。FAIL = Step 3b 漏刷本 track `last_updated` → 回 Step 3b 补再 commit (防 CLAUDE.md state frozen 上百个 commit 没人改 同类事故)。脚本都找不到 (纯 user-level fallback 项目) → 跳过, 不 block。
+> 1. **state-rot 防御 (有这道闸的仓才跑)** — `bash "$(dirname $0)/scripts/handoff-freshness-check.sh" <本 session track-id>` —— **脚本随本 skill 分发**, 在本 skill 目录的 `scripts/` 下。⭐ **项目自带同名脚本时以【项目那份】为准**(2026-09-28 改: 此前写的是「内容以 skill 自带的为准」, 那句会让执笔者拿全局那份去覆盖仓自己的决定)。
+>    · 脚本打出「本仓已取消这道闸」之类的话并 `exit 0` ⇒ **就是通过, 别再去找字段刷**;
+>    · FAIL 且该仓确实还有这个字段 = Step 3b 漏刷本 track `last_updated` → 回 Step 3b 补再 commit (防 state frozen 上百个 commit 没人改 同类事故);
+>    · 脚本都找不到 (纯 user-level fallback 项目) → 跳过, 不 block。
 > 2. **改了本 skill 本身时** — 顺手把顶部 `handoff-skill-rev: <今天>` 锚点改掉, 再推回本 skill 的源仓。使用者跑 `npx skills update -g` 拉新版, rev 锚点就是他们确认"到底拿到没拿到"的凭据。**不改 skill 内容的普通 session 不需要这条。**
 > 3. **改了本 skill 的那一棒, PR 合并后必须再跑一次 `npx skills update -g`** —— 然后 grep 一下 rev 确认真拉到了。
 >    🔑 **为什么单列**: Step 0.5 跑在 handoff 的**开头**, 而"改 skill"发生在**这里(结尾)**。时序决定了 —— **改 skill 的那一棒, 自己永远拿不到自己的改动**, 除非在这里补一次。这不是"谁忘了跑", 是 Step 0.5 结构性够不到。
