@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-09-30a -->
+<!-- handoff-skill-rev: 2026-10-13a -->
 > 📌 **版本验证**: 上行 `handoff-skill-rev: <日期>` 是本 skill 的版本锚点。每次实质更新本 skill 顺手改这行日期;**同一天第二次及以后的更新加字母后缀**(`2026-08-12` → `2026-08-12b` → `…c`),字符串比较仍然成立。
 >
 > 🚨 **读这个锚点只有一种正确写法 —— 必须锚定【注释形状】, 不能 grep 裸词**:
@@ -1468,6 +1468,13 @@ git rev-parse --abbrev-ref '@{u}'      # 必须有上游 —— 从没推过 = �
 > —— ⚠ **当前证据下判定做不到**(这句是当前判定, 不是永久结论)。
 
 ## Step 5: Self-lint handoff doc
+
+**先跑这一条(机器核,退出码 1 必须改到 0 再往下)** —— §⚠ 里每件「等他」的事必须对得上板上的一张卡:
+```bash
+python3 <skill>/scripts/handoff-yours-check.py --doc <交接文档> --board <本线板.html>   # 等他的事挂在别的线板上 ⇒ 再加一个 --board;没板的线 ⇒ --no-board "理由"
+```
+它点出来的行:一件挂一张卡(`board.py ask`),把回来的卡号写进那一行;一行并着几件的拆开;其实不等他了的,把状态列改成真实状态。⛔ 别为了过闸把「等宇通」改个说法。
+📌 为什么是机器核:Step 3 那句「等他点头的同一轮挂成卡」09-30 实测 9 件上卡 0 件;10-13 电商-投流有两件事从 10-06 起每一棒原样抄进交接文档、从没挂过卡,板 lint 全程 PASS(宇通 10-13 拍)。
 
 Grep own doc for:
 - ✅ / "shipped" / "完成" / "ship" / "ready" → MUST have file:line citation OR commit hash; else change to 🟡 designed / pending
