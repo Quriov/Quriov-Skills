@@ -34,7 +34,7 @@ npx skills update -g
 每个 skill 顶部都有 `<!-- <name>-skill-rev: <日期> -->` 版本锚点。想确认自己拿到的是哪一版:
 
 ```bash
-grep -r skill-rev ~/.agents/skills/handoff/SKILL.md
+grep -o '<!-- handoff-skill-rev: [^ ]* -->' ~/.agents/skills/handoff/SKILL.md   # 锚定注释形状,恰好 1 行;裸 grep 会命中讲锚点的说明行
 ```
 
 日期 ≥ 你预期的更新日 = 拿到了。
