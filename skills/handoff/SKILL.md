@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-10-20a -->
+<!-- handoff-skill-rev: 2026-10-26a -->
 > 📌 版本锚点 = 上行注释。每次实质更新改日期;同一天第二次起加字母后缀(`…20a` → `…20b`)。
 > 读它只用锚定注释形状的写法:`grep -o '<!-- handoff-skill-rev: [^ ]* -->' <SKILL.md>`(恰好 1 行)。⛔ 别 `grep handoff-skill-rev` 裸词 —— 会命中讲锚点的说明行,取错行得到空值。
 > ⚠ 三个版本可以互不相同:**你此刻正在读的这份**(= 本次执行的版本,填 [0b] 用它)· 磁盘上那份(grep 磁盘)· 源仓最新那份(Step 0.5)。`✓ Updated` 只说明文件被替换,不说明方向;「已是最新」什么都不证明。
@@ -22,7 +22,8 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 1. **检查点就是交接文档的前半**:本会话已有检查点(贴进对话的 §🔴/§⚠/§🚨/§🧠/§📌 等几段,或 `<handoff 目录>/<日期>-<线名>-checkpoint.md`)⇒ 直接沿用,⛔ 别从对话里重新提取一遍(两份会写出不一样的 §🔴)。Step 1 只补「检查点之后新出现的信号」和每条的 `→ 落点:`;Step 0 仍要重跑(检查点里的 live 输出已过期)。
 2. **自动触发(插件 / 别的会话的消息让你开始交接)⇒ 不停下来等宇通确认**。本文凡写「问用户 / 等确认 / AskUserQuestion」的地方:要他拍的事 `board.py ask` 挂到板上「要你的」,接着往下跑;没板的线写进接班 prompt 让下一棒开局挂。只有**删了找不回**的动作(删分支 / worktree / 文件 / 远端资源)⛔ 不做、只挂板。
 3. **接班 prompt 怎么交出去**:
-   - **Claude 侧**:prompt 全文交给 `mcp__ccd_session__start_session` 的 `prompt` 参数(由 checkpoint 技能 H4 调用,开出来再归档自己见 H5)。他在本会话亲口要了交接 ⇒ `initiation="user_asked"`;这一轮由插件 / 别的会话触发 ⇒ `user_asked` 会被拒,只能 `own_initiative` 出提案卡,且卡**不能带 `cwd` / host**(接班默认开在本会话的文件夹),同一轮在板上挂「要你点一下」。开场白改了 ⇒ 旧卡 `dismiss_task` 再出新的。
+   - **Claude 侧**:prompt 全文交给 `mcp__ccd_session__start_session` 的 `prompt` 参数(由 checkpoint 技能 H4 调用,开出来再归档自己见 H5)。他在本会话亲口要了交接 ⇒ `initiation="user_asked"`;这一轮由插件 / 别的会话触发 ⇒ `user_asked` 会被拒,只能 `own_initiative` 出提案卡,且卡**不能带 `cwd` / host**,同一轮在板上挂「要你点一下」。
+     ⭐ **开在哪个目录(两条路都适用,10-22 / 10-25 两次实撞)**:本会话**不在** worktree 里 ⇒ `use_worktree=false` 共用目录;本会话**在** worktree 里(cwd 含 `/.claude/worktrees/`)⇒ ⛔ 别 `use_worktree=false` —— 接班会成为前任的共用检出子会话,归档前任会连带归档它、默认清掉目录,detach 也被拒。先把账本 / 检查点 / 代码提交并推到本线分支,再 `use_worktree=true, source_branch="<本线分支>"`。细节见 checkpoint 技能 H4。开场白改了 ⇒ 旧卡 `dismiss_task` 再出新的。
    - **Codex 侧 / 没有 start_session 的环境**:照旧 4 反引号围栏给他复制。
 4. **验证性的跑**(为测流程而跑,不是真换棒)⇒ 跳过所有对外通知(Step 0.6 / 4d),否则协作方会把东西发给不存在的接班。
 
