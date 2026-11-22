@@ -14,6 +14,12 @@
   handoff-yours-check.py --doc <交接文档或检查点.md> --board <板.html> [--board <别的线的板.html> …]
   handoff-yours-check.py --doc <…> --no-board "这条线没有板"      # 没板的线:跳过,但要出声
 退出码:0 全对得上(或没板) · 1 有对不上的行 · 2 没法判(没找到未决节 / 读不到板)
+
+第二类(rev 2026-11-16 加):
+  未决表里状态写着「未做 / 待… / 未处理 / 未核 / 未补」、却没写板行号(或写了但板上没有这一行)的事,
+  只活在检查点里 —— 板 lint 和压缩后的注入都只读板,看不到它(实测一条线撞到 9 件,有的挂了 5 天)。
+  ⇒ 列出来要求补一行或写明行号。⚠ 先只提醒、不影响退出码(新检查先只记不拦跑一段,命中多数是真问题再改成算失败),
+  命中记日志(默认 ~/.quriov/handoff-yours-check.log,可用环境变量 HANDOFF_YOURS_CHECK_LOG 改)。
 """
 import argparse
 import json
@@ -30,6 +36,11 @@ WAIT_CELL = re.compile(r"^宇通$|^宇通[、,，/ ]|等宇通|球在宇通|宇�
 # 非表格行(列表 / 段落):整行都是自由文字,只认明确的「等他」说法,免得叙述里提到他就报。
 WAIT_LINE = re.compile(r"等宇通|球在宇通|等他拍|等你拍|等他点头|等他回|他没回|等他动手|等你动手")
 ASK_RE = re.compile(r"ask-[0-9a-f]{8}")
+# 板行号(形如 r1116-ab、r1114-4907、r1116-abcdef);中文字在 Python 里算 \w,⛔ 别用 \b
+ROW_RE = re.compile(r"(?<![A-Za-z0-9])r\d{4}-[0-9a-z]{2,10}(?![A-Za-z0-9-])")
+NOTDONE_CELL = re.compile(r"未做|未处理|未核|未补|没做|^待(?!宇通|他|你)|待做|待补|待核|待处理")
+NOTDONE_LINE = re.compile(r"未做|未处理|未核|未补|还没做|待做|待补|待核|待处理")
+LOG = os.path.expanduser(os.environ.get("HANDOFF_YOURS_CHECK_LOG", "~/.quriov/handoff-yours-check.log"))
 
 
 def pending_section(lines):
@@ -71,6 +82,44 @@ def split_items(section):
     return items
 
 
+def orphan_note(doc, items, waiting, boards):
+    """第二类:没做完、板上没有行的事。只打印 + 记日志,不改退出码。"""
+    wait_nos = {it[0] for it in waiting}
+    cand = [it for it in items if it[0] not in wait_nos
+            and (NOTDONE_CELL if it[3] else NOTDONE_LINE).search(it[2])]
+    if not cand:
+        return
+    acks = set()
+    for b in boards or []:
+        try:
+            acks |= set(re.findall(r'data-ack="([^"]+)"', open(b, encoding="utf-8").read()))
+        except Exception:
+            pass
+    bad = []
+    for no, text, status, _ in cand:
+        ids = ROW_RE.findall(text) + ASK_RE.findall(text)
+        if ids and (not acks or any(i in acks for i in ids)):
+            continue
+        why = (f"写了 {'、'.join(ids)},但板上没有这一行" if ids else "没写板行号")
+        bad.append((no, text, status, why))
+    if not bad:
+        print(f"✓ 没做完的 {len(cand)} 件都写了板行号")
+        return
+    print(f"⚠ {len(bad)} 件没做完的事只活在这份文件里,板上没有行 —— 板 lint 和压缩后的提醒都看不到它"
+          f"(试跑期先只提醒,不算失败):")
+    for no, text, status, why in bad:
+        print(f"   · 第 {no} 行「{text[:60]}…」状态「{status[:30]}」:{why}")
+    print("  ⇒ 每件补一行:`board.py row <板> --new --title \"…\" --say \"现在到哪了\" --eta MM-DD`,"
+          "把回来的行号写进这一行;已经不做了的从未决表删掉或写明为什么不做。")
+    try:
+        import time
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"at": time.strftime("%Y-%m-%dT%H:%M:%S"), "doc": doc, "orphans": len(bad),
+                                "lines": [b[0] for b in bad]}, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def load_yours(board, stub):
     if stub:
         return json.load(open(stub, encoding="utf-8"))
@@ -98,6 +147,7 @@ def main():
         return 2
     items = split_items(section)
     waiting = [it for it in items if (WAIT_CELL if it[3] else WAIT_LINE).search(it[2])]
+    orphan_note(a.doc, items, waiting, a.board)
     print(f"未决节 {len(items)} 件,其中等他的 {len(waiting)} 件")
     if not waiting:
         print("✓ 没有等他的事,不用对板")
