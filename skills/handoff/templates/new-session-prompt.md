@@ -6,6 +6,7 @@ variables:
   - "{{type}}": business-continuation / debug / system-upgrade / handoff-take-over / new-independent
   - "{{handoff_doc_path}}": 主交接文档路径
   - "{{warnings_top3}}": 本 turn 学到的 top 3 警告
+  - "{{last_human_quotes}}": Step 4 的原话抽取脚本输出，连同节标题直接贴入
   - "{{worktree_reclaim}}": Step 4c 写的前任 worktree 报告段 —— 只报路径与住户, ⛔ 不含删除指令 (没有前任 worktree 时整节删掉)
 ---
 
@@ -138,6 +139,8 @@ Read {{handoff_doc_path}} 的 "⚠ What's still pending" section,
 > ⚠ **这几行写在这里, 是因为【纯 fallback 环境】(新装 / 没有项目级和用户级模板)
 > 除了本文件没有别的依靠** —— 而上面那句 ⛔ 只说了"别留空", **没说非空长什么样**。
 > **禁令给了、写法没给, 正是本 skill 反复在治的那一类。**
+
+{{last_human_quotes}}
 
 ## 沟通规则 (cross-cutting)
 
