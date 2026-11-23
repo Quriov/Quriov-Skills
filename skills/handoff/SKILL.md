@@ -6,7 +6,7 @@ when_to_use: 用户要结束/收尾一个长 session 时("handoff" / "close sess
 
 # handoff — Long-session closure protocol
 
-<!-- handoff-skill-rev: 2026-10-26a -->
+<!-- handoff-skill-rev: 2026-11-23a -->
 > 📌 版本锚点 = 上行注释。每次实质更新改日期;同一天第二次起加字母后缀(`…20a` → `…20b`)。
 > 读它只用锚定注释形状的写法:`grep -o '<!-- handoff-skill-rev: [^ ]* -->' <SKILL.md>`(恰好 1 行)。⛔ 别 `grep handoff-skill-rev` 裸词 —— 会命中讲锚点的说明行,取错行得到空值。
 > ⚠ 三个版本可以互不相同:**你此刻正在读的这份**(= 本次执行的版本,填 [0b] 用它)· 磁盘上那份(grep 磁盘)· 源仓最新那份(Step 0.5)。`✓ Updated` 只说明文件被替换,不说明方向;「已是最新」什么都不证明。
@@ -245,6 +245,7 @@ gh api "repos/Quriov/Quriov-Skills/contents/skills/handoff/SKILL.md?ref=main" --
 |---|---|
 | 首行标题(Step 4b 命中时) | 版本断档 |
 | **内化复述段**:动手前 3-5 句复述「北极星 + 当前档位 + 有意延后 vs 真缺口 + 本轮任务」,写在第一条回复里(ad-hoc 缩成 1-2 句) | 接班丢设计意图 |
+| **上一棒最后一次压缩后他说的话** | 接班漏掉上一棒最近的交代和理由 |
 | **Live verify 段** | 接班信 memory 不信命令 |
 | **开局回访段**(有 §🤝 时,见 4d) | 清单成了没人用的通讯录 |
 | **前任 worktree 报告 + `pwd` 第 0 条**(见 4c) | 接班可能删掉自己脚下的目录 |
@@ -253,6 +254,7 @@ gh api "repos/Quriov/Quriov-Skills/contents/skills/handoff/SKILL.md?ref=main" --
 | **现在时断言重扫**(接班当轮把 §⚠/§🤝/§🚨 里「还没 / 仍在 / 未」的逐条确认还成立) | 接班去修已经好了的东西 |
 
 - 填 4 个变量:`{{track}}`(2a)· `{{type}}`(business-continuation / debug / system-upgrade / handoff-take-over / new-independent)· `{{handoff_doc_path}}` · `{{warnings_top3}}`(§🚨 前三)。
+- 定稿时用 Step 0 认准的本会话转录跑 `python3 ~/.claude/skills/handoff/scripts/handoff-quotes.py <本会话 transcript.jsonl>`，将输出连标题原样贴进 `{{last_human_quotes}}`，模板无此槽位就把整节补进开场白。逐条照抄，太长时只许省掉寒暄，理由和业务背景必须全留。期间他又说了话就定稿前重跑。
 - 🔑 改的这一份在**你此刻这个项目**里是不是赢的那一份?只能按 fallback 顺序当场探。验「有则用、无则跳」类条款,必须在**条件不成立**的一侧验。
 - **怎么交出去**:Claude 侧交给 `start_session` 的 `prompt` 参数(见顶部第 3 条);Codex 侧现在就用 4 反引号 ```` 包起来(模板里有 ```bash```,3 反引号会被撑破)。
 
@@ -324,7 +326,7 @@ Grep 自己的文档:
   - 找本 session 的转录按**目录**定位(⛔ 别信 mtime 最新、别用行数阈值、别用工作目录名 / session id 反查 —— 别人的消息会引用它)。
   - 落地后跑双向对照:阳性(真值逐条数出来的那份)= 真值,阴性 = 0;两头都对才打印。数出 0 也打印 `ℹ️ 检测到 0 次跨方往来, 本条跳过`;>0 ⇒ 必须有 §🤝,每条有结没结 + 投递地址。
 - **交接期间接活**:进入交接(Step 0.6)之后动过 N 样东西(`git log --since=<那一刻>` / 工具时间戳 / mtime)⇒ N>0 文档必须有一节列出它们(真闸);「每一样下一棒都看得见」是人判,明写。
-- **接班 prompt**:缺内化复述 ⇒ 补;有 §🤝 缺开局回访 ⇒ 补;缺下一任标题(4b 命中时)⇒ 补。
+- **接班 prompt**:缺内化复述或「上一棒最后一次压缩后他说的话」⇒ 补;有 §🤝 缺开局回访 ⇒ 补;缺下一任标题(4b 命中时)⇒ 补。
 - **步骤完成度(核产物,不回忆)** —— 缺任一 = 还没跑完:
 
 | 步骤 | 产物 |
